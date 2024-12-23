@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "prospect",
+    "slug": "prospect-mobile-new",
+    "icon": "./assets/images/appLogo.png",
+    "backgroundColor": "#6fc99c",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#6fc99c"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "softwareKeyboardLayoutMode": "pan",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/appLogo.png",
+        "backgroundColor": "#6fc99c"
+      },
+      "package": "com.havanise.prospectmobilenew"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "659023b6-2ac6-4007-b563-2c65c8d64fa0"
+      }
+    },
+    "plugins": [
+      "expo-font"
+    ]
+  }
+}
