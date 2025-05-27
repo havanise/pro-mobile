@@ -11,6 +11,7 @@ import {
   groupByKey,
   roundToDown,
 } from "../../utils";
+import { getHighestPermissionKey } from "../../utils/permissions";
 import { useApi, useFilterHandle } from "../../hooks";
 import { Table, Row } from "react-native-reanimated-table";
 import Toast from "react-native-toast-message";
@@ -51,7 +52,6 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 import { DefaultUser, Logo } from "../../assets";
 import { Container } from "./styles";
 import Pagination from "@cherry-soft/react-native-basic-pagination";
-import { TooltipMenu } from "react-native-tooltip-menu";
 
 import {
   ProButton,
@@ -74,6 +74,7 @@ import { TextInput } from "react-native";
 
 import math from "exact-math";
 import Forms from "../../components/Forms";
+import { paymentType, saleType } from "../../utils/constants";
 
 export const paymentAvailableInvoiceTypes = [1, 2, 3, 4, 10];
 
@@ -109,6 +110,58 @@ export const getStatusOfOperationLabel = (statusOfOperation) =>
       Silinib
     </Text>
   );
+
+const operationTypesByPermissionKey = {
+  9: "transaction_invoice_payment",
+  10: "transaction_invoice_payment",
+  8: "transaction_expense_payment",
+  4: "money_transfer",
+  6: "salary_payment",
+  7: "transaction_balance_creation_payment",
+  11: "transaction_advance_payment",
+  12: "transaction_tenant_person_payment",
+  13: "transaction_exchange",
+  14: "cashbox_balance_report",
+  16: "transaction_dividend",
+  19: "transaction_debt_relief",
+  20: "transaction_debt_relief_tax",
+  21: "transaction_increase",
+  22: "transaction_decrease",
+  23: "transaction_barter",
+  24: "transaction_advance_payment",
+};
+
+export const saleTypesByPermissionKeys = {
+  1: "purchase_invoice",
+  2: "sales_invoice",
+  3: "return_from_customer_invoice",
+  4: "return_to_supplier_invoice",
+  5: "transfer_invoice",
+  6: "remove_invoice",
+  8: "draft_invoice",
+  10: "import_purchase",
+  11: "production_invoice",
+  14: "product_increase_invoice",
+  15: "product_decrease_invoice",
+  16: "stock_consignment",
+  17: "stock_consignment",
+  19: "production_invoice",
+};
+
+export const isTransactionTypeAllowed = (
+  selectedType,
+  transactionType,
+  typeId,
+  options
+) => {
+  return (
+    transactionType.includes(selectedType) &&
+    ((options?.length !== 0 &&
+      options?.find(({ id }) => id === typeId)?.checked) ||
+      options?.length === 0)
+  );
+};
+
 const getExcelPaymentStatus = (paymentStatus) => {
   switch (paymentStatus) {
     case 1:
@@ -273,6 +326,7 @@ const FirstRoute = (props) => {
     permissionsByKeyValue,
     setTableSettings,
     tableSettings,
+    permissions,
   } = props;
   const [data, setData] = useState({
     tableHead: [],
@@ -577,20 +631,18 @@ const FirstRoute = (props) => {
                       )}
                     </View>
                   }
-                >
-                  <Entypo name="dots-three-vertical" size={20} color="black" />
-                </ProTooltip>
+                  trigger={
+                    <Entypo
+                      name="dots-three-vertical"
+                      size={20}
+                      color="black"
+                    />
+                  }
+                />
               )}
             </View>
           );
-          columns[column.indexOf("invoiceType")] = (
-            <ProTooltip
-              containerStyle={{ width: 145, height: "auto" }}
-              popover={<Text>{invoiceType}</Text>}
-            >
-              <Text>{invoiceType}</Text>
-            </ProTooltip>
-          );
+          columns[column.indexOf("invoiceType")] = <Text>{invoiceType}</Text>;
           columns[column.indexOf("createdAt")] = (
             <Text>
               {createdAt?.replace(/(\d{4})-(\d\d)-(\d\d)/, "$3-$2-$1")}
@@ -1018,7 +1070,6 @@ const FirstRoute = (props) => {
               style={{
                 display: "flex",
                 flexDirection: "row",
-                justifyContent: "center",
               }}
             >
               <Text>{counterpartyPhoneNumbers?.[0] || "-"}</Text>
@@ -1032,9 +1083,14 @@ const FirstRoute = (props) => {
                       ))}
                     </View>
                   }
-                >
-                  <Entypo name="dots-three-vertical" size={20} color="black" />
-                </ProTooltip>
+                  trigger={
+                    <Entypo
+                      name="dots-three-vertical"
+                      size={20}
+                      color="black"
+                    />
+                  }
+                />
               )}
             </View>
           );
@@ -1910,6 +1966,19 @@ const FirstRoute = (props) => {
     }
   };
 
+  const salePermissions = permissions.filter(
+    ({ group_key, sub_group_key }) =>
+      group_key === "sales" && sub_group_key === "operations"
+  );
+
+  const getPermission = (row) => {
+    return salePermissions.find(({ key }) => {
+      return (
+        key === saleType.find(({ id }) => id === row.invoiceTypeNumber)?.key
+      );
+    })?.permission;
+  };
+
   return (
     <>
       <Modal
@@ -2156,7 +2225,7 @@ const FirstRoute = (props) => {
                     <Modal
                       visible={isModalVisible}
                       transparent
-                      animationType="fade"
+                      animationType="slide"
                       onRequestClose={() => setModalVisible(false)}
                     >
                       <TouchableOpacity
@@ -2165,8 +2234,14 @@ const FirstRoute = (props) => {
                         onPress={() => {
                           setModalVisible(false);
                         }}
+                        pointerEvents="box-none"
                       >
-                        <View style={styles.modalContainer}>
+                        <View
+                          style={[
+                            styles.modalContainer,
+                            { zIndex: 10, elevation: 10 },
+                          ]}
+                        >
                           <Text style={styles.viewModalHeading}>
                             {selectedRow?.invoiceNumber}
                           </Text>
@@ -2176,190 +2251,338 @@ const FirstRoute = (props) => {
                               onPress={() => {
                                 handleView();
                               }}
-                            >
-                              <ProButton
-                                label={
-                                  <AntDesign
-                                    name="eyeo"
-                                    size={20}
-                                    color="black"
-                                  />
-                                }
-                                type="transparent"
-                                flex={false}
-                              />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.iconButton}
-                              onPress={() => {
-                                if (
-                                  selectedRow.invoiceTypeNumber === 3 ||
-                                  selectedRow.invoiceTypeNumber === 4
-                                ) {
-                                  setRemoveModalVisible(true);
-                                  setFiltersForRemove({
-                                    value: selectedRow?.id,
-                                    filters: filter,
-                                    row: selectedRow,
-                                  });
-                                } else {
-                                  if (
-                                    selectedRow.totalPaymentsAmountConvertedToMainCurrency ===
-                                      null &&
-                                    selectedRow.totalSalariesAmountConvertedToMainCurrency ===
-                                      null &&
-                                    selectedRow.totalRemoveInvoicesAmountConvertedToMainCurrency ===
-                                      null
-                                  ) {
-                                    onRemoveProduct(
-                                      selectedRow?.id,
-                                      filter,
-                                      selectedRow
-                                    );
-                                  } else {
-                                    setInvoiceToDelete(
-                                      selectedRow.invoiceNumber
-                                    );
-                                    setDeleteModalVisibe(true);
-                                  }
-                                }
+                              onLongPress={() => {
+                                handleView();
                               }}
                             >
-                              <ProButton
-                                label={
+                              <AntDesign
+                                name="eyeo"
+                                size={24}
+                                color="black"
+                                style={{ padding: 5 }}
+                              />
+                            </TouchableOpacity>
+                            {getPermission(selectedRow) === 2 &&
+                              (tenant?.isAdmin ||
+                                isTransactionTypeAllowed(
+                                  selectedRow?.invoiceTypeNumber,
+                                  [
+                                    1, 2, 3, 4, 5, 6, 8, 10, 11, 14, 15, 16, 17,
+                                    19,
+                                  ],
+                                  0,
+                                  permissionsByKeyValue[
+                                    saleTypesByPermissionKeys[
+                                      selectedRow?.invoiceTypeNumber
+                                    ]
+                                  ]?.options
+                                )) && (
+                                <TouchableOpacity
+                                  style={styles.iconButton}
+                                  onPress={() => {
+                                    if (
+                                      selectedRow.invoiceTypeNumber === 3 ||
+                                      selectedRow.invoiceTypeNumber === 4
+                                    ) {
+                                      setRemoveModalVisible(true);
+                                      setFiltersForRemove({
+                                        value: selectedRow?.id,
+                                        filters: filter,
+                                        row: selectedRow,
+                                      });
+                                    } else {
+                                      if (
+                                        selectedRow.totalPaymentsAmountConvertedToMainCurrency ===
+                                          null &&
+                                        selectedRow.totalSalariesAmountConvertedToMainCurrency ===
+                                          null &&
+                                        selectedRow.totalRemoveInvoicesAmountConvertedToMainCurrency ===
+                                          null
+                                      ) {
+                                        onRemoveProduct(
+                                          selectedRow?.id,
+                                          filter,
+                                          selectedRow
+                                        );
+                                      } else {
+                                        setInvoiceToDelete(
+                                          selectedRow.invoiceNumber
+                                        );
+                                        setDeleteModalVisibe(true);
+                                      }
+                                    }
+                                  }}
+                                  onLongPress={() => {
+                                    if (
+                                      selectedRow.invoiceTypeNumber === 3 ||
+                                      selectedRow.invoiceTypeNumber === 4
+                                    ) {
+                                      setRemoveModalVisible(true);
+                                      setFiltersForRemove({
+                                        value: selectedRow?.id,
+                                        filters: filter,
+                                        row: selectedRow,
+                                      });
+                                    } else {
+                                      if (
+                                        selectedRow.totalPaymentsAmountConvertedToMainCurrency ===
+                                          null &&
+                                        selectedRow.totalSalariesAmountConvertedToMainCurrency ===
+                                          null &&
+                                        selectedRow.totalRemoveInvoicesAmountConvertedToMainCurrency ===
+                                          null
+                                      ) {
+                                        onRemoveProduct(
+                                          selectedRow?.id,
+                                          filter,
+                                          selectedRow
+                                        );
+                                      } else {
+                                        setInvoiceToDelete(
+                                          selectedRow.invoiceNumber
+                                        );
+                                        setDeleteModalVisibe(true);
+                                      }
+                                    }
+                                  }}
+                                >
                                   <FontAwesome
                                     name="trash"
-                                    size={20}
+                                    size={24}
                                     color="black"
+                                    style={{ padding: 5 }}
                                   />
-                                }
-                                type="transparent"
-                                flex={false}
-                              />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.iconButton}
-                              onPress={() => {
-                                handleFormModal(
+                                </TouchableOpacity>
+                              )}
+                            {getPermission(selectedRow) === 2 && (
+                              <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => {
+                                  handleFormModal(
+                                    selectedRow?.invoiceTypeNumber,
+                                    selectedRow?.draftType,
+                                    selectedRow?.id
+                                  );
+                                }}
+                                onLongPress={() => {
+                                  handleFormModal(
+                                    selectedRow?.invoiceTypeNumber,
+                                    selectedRow?.draftType,
+                                    selectedRow?.id
+                                  );
+                                }}
+                              >
+                                <MaterialCommunityIcons
+                                  name="file-download-outline"
+                                  size={24}
+                                  color="black"
+                                  style={{ padding: 5 }}
+                                />
+                              </TouchableOpacity>
+                            )}
+                            {getPermission(selectedRow) === 2 &&
+                              [1, 2, 3, 5, 6].includes(
+                                selectedRow?.invoiceTypeNumber
+                              ) &&
+                              (tenant?.isAdmin ||
+                                isTransactionTypeAllowed(
                                   selectedRow?.invoiceTypeNumber,
-                                  selectedRow?.draftType,
-                                  selectedRow?.id
-                                );
-                              }}
-                            >
-                              <ProButton
-                                label={
-                                  <MaterialCommunityIcons
-                                    name="file-download-outline"
-                                    size={20}
-                                    color="black"
-                                  />
-                                }
-                                type="transparent"
-                                flex={false}
-                              />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.iconButton}
-                              onPress={() => {
-                                fetchSalesInvoiceInfo({
-                                  apiEnd: Number(selectedRow.id),
-                                  filter: {
-                                    businessUnitIds:
-                                      selectedRow.businessUnitId !==
-                                        undefined &&
-                                      selectedRow.businessUnitId === null
-                                        ? [0]
-                                        : selectedRow.businessUnitId
-                                        ? [selectedRow.businessUnitId]
-                                        : undefined,
-                                    withRoadTaxes: 1,
-                                  },
-                                }).then((data) => {
-                                  setModalVisible(false);
-                                  if (
-                                    !data.canEdit &&
-                                    data.invoiceType !== 2 &&
-                                    data.invoiceType !== 1 &&
-                                    data.invoiceType !== 3 &&
-                                    data.invoiceType !== 4 &&
-                                    data.invoiceType !== 5 &&
-                                    data.invoiceType !== 10 &&
-                                    data.invoiceType !== 14 &&
-                                    data.invoiceType !== 15
-                                  ) {
-                                    Toast.show({
-                                      type: "error",
-                                      text2: "Bu qaimədə düzəliş oluna bilməz.",
-                                      topOffset: 50,
-                                    });
+                                  [
+                                    1, 2, 3, 4, 5, 6, 8, 10, 11, 14, 15, 16, 17,
+                                    19,
+                                  ],
+                                  1,
+                                  permissionsByKeyValue[
+                                    saleTypesByPermissionKeys[
+                                      selectedRow?.invoiceTypeNumber
+                                    ]
+                                  ]?.options
+                                )) && (
+                                <TouchableOpacity
+                                  style={styles.iconButton}
+                                  onPress={() => {
+                                    fetchSalesInvoiceInfo({
+                                      apiEnd: Number(selectedRow.id),
+                                      filter: {
+                                        businessUnitIds:
+                                          selectedRow.businessUnitId !==
+                                            undefined &&
+                                          selectedRow.businessUnitId === null
+                                            ? [0]
+                                            : selectedRow.businessUnitId
+                                            ? [selectedRow.businessUnitId]
+                                            : undefined,
+                                        withRoadTaxes: 1,
+                                      },
+                                    }).then((data) => {
+                                      setModalVisible(false);
+                                      if (
+                                        !data.canEdit &&
+                                        data.invoiceType !== 2 &&
+                                        data.invoiceType !== 1 &&
+                                        data.invoiceType !== 3 &&
+                                        data.invoiceType !== 4 &&
+                                        data.invoiceType !== 5 &&
+                                        data.invoiceType !== 10 &&
+                                        data.invoiceType !== 14 &&
+                                        data.invoiceType !== 15
+                                      ) {
+                                        Toast.show({
+                                          type: "error",
+                                          text2:
+                                            "Bu qaimədə düzəliş oluna bilməz.",
+                                          topOffset: 50,
+                                        });
 
-                                    navigation.pop();
-                                  } else {
-                                    // setInvoiceInfo(data);
-                                    switch (selectedRow.invoiceTypeNumber) {
-                                      case 1:
-                                        navigation.push("Purchase", {
-                                          id: selectedRow.id,
-                                          businessUnit:
-                                            selectedRow.businessUnitId,
-                                          invoiceInfo: data,
+                                        navigation.pop();
+                                      } else {
+                                        // setInvoiceInfo(data);
+                                        switch (selectedRow.invoiceTypeNumber) {
+                                          case 1:
+                                            navigation.push("Purchase", {
+                                              id: selectedRow.id,
+                                              businessUnit:
+                                                selectedRow.businessUnitId,
+                                              invoiceInfo: data,
+                                            });
+                                            break;
+                                          case 2:
+                                            navigation.push("Sale", {
+                                              id: selectedRow.id,
+                                              businessUnit:
+                                                selectedRow.businessUnitId,
+                                              invoiceInfo: data,
+                                            });
+                                            break;
+                                          case 3:
+                                            navigation.push(
+                                              "ReturnFromCustomer",
+                                              {
+                                                id: selectedRow.id,
+                                                businessUnit:
+                                                  selectedRow.businessUnitId,
+                                                invoiceInfo: data,
+                                              }
+                                            );
+                                            break;
+                                          case 5:
+                                            navigation.push("SaleTransfer", {
+                                              id: selectedRow.id,
+                                              businessUnit:
+                                                selectedRow.businessUnitId,
+                                              invoiceInfo: data,
+                                            });
+                                            break;
+                                          case 6:
+                                            navigation.push("WritingOff", {
+                                              id: selectedRow.id,
+                                              businessUnit:
+                                                selectedRow.businessUnitId,
+                                              invoiceInfo: data,
+                                            });
+                                            break;
+                                          default:
+                                            break;
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  onLongPress={() => {
+                                    fetchSalesInvoiceInfo({
+                                      apiEnd: Number(selectedRow.id),
+                                      filter: {
+                                        businessUnitIds:
+                                          selectedRow.businessUnitId !==
+                                            undefined &&
+                                          selectedRow.businessUnitId === null
+                                            ? [0]
+                                            : selectedRow.businessUnitId
+                                            ? [selectedRow.businessUnitId]
+                                            : undefined,
+                                        withRoadTaxes: 1,
+                                      },
+                                    }).then((data) => {
+                                      setModalVisible(false);
+                                      if (
+                                        !data.canEdit &&
+                                        data.invoiceType !== 2 &&
+                                        data.invoiceType !== 1 &&
+                                        data.invoiceType !== 3 &&
+                                        data.invoiceType !== 4 &&
+                                        data.invoiceType !== 5 &&
+                                        data.invoiceType !== 10 &&
+                                        data.invoiceType !== 14 &&
+                                        data.invoiceType !== 15
+                                      ) {
+                                        Toast.show({
+                                          type: "error",
+                                          text2:
+                                            "Bu qaimədə düzəliş oluna bilməz.",
+                                          topOffset: 50,
                                         });
-                                        break;
-                                      case 2:
-                                        navigation.push("Sale", {
-                                          id: selectedRow.id,
-                                          businessUnit:
-                                            selectedRow.businessUnitId,
-                                          invoiceInfo: data,
-                                        });
-                                        break;
-                                      case 5:
-                                        navigation.push("SaleTransfer", {
-                                          id: selectedRow.id,
-                                          businessUnit:
-                                            selectedRow.businessUnitId,
-                                          invoiceInfo: data,
-                                        });
-                                        break;
-                                      case 6:
-                                        navigation.push("WritingOff", {
-                                          id: selectedRow.id,
-                                          businessUnit:
-                                            selectedRow.businessUnitId,
-                                          invoiceInfo: data,
-                                        });
-                                        break;
-                                      default:
-                                        break;
-                                    }
-                                    // if (
-                                    //   data?.invoiceType === 3 ||
-                                    //   data?.invoiceType === 4
-                                    // ) {
-                                    //   fetchGroupedTransaction(
-                                    //     selectedId,
-                                    //     ({ data }) => {
-                                    //       setGroupedTransaction(data);
-                                    //     }
-                                    //   );
-                                    // }
-                                  }
-                                });
-                              }}
-                            >
-                              <ProButton
-                                label={
+
+                                        navigation.pop();
+                                      } else {
+                                        // setInvoiceInfo(data);
+                                        switch (selectedRow.invoiceTypeNumber) {
+                                          case 1:
+                                            navigation.push("Purchase", {
+                                              id: selectedRow.id,
+                                              businessUnit:
+                                                selectedRow.businessUnitId,
+                                              invoiceInfo: data,
+                                            });
+                                            break;
+                                          case 2:
+                                            navigation.push("Sale", {
+                                              id: selectedRow.id,
+                                              businessUnit:
+                                                selectedRow.businessUnitId,
+                                              invoiceInfo: data,
+                                            });
+                                            break;
+                                          case 4:
+                                            navigation.push(
+                                              "ReturnFromCustomer",
+                                              {
+                                                id: selectedRow.id,
+                                                businessUnit:
+                                                  selectedRow.businessUnitId,
+                                                invoiceInfo: data,
+                                              }
+                                            );
+                                            break;
+                                          case 5:
+                                            navigation.push("SaleTransfer", {
+                                              id: selectedRow.id,
+                                              businessUnit:
+                                                selectedRow.businessUnitId,
+                                              invoiceInfo: data,
+                                            });
+                                            break;
+                                          case 6:
+                                            navigation.push("WritingOff", {
+                                              id: selectedRow.id,
+                                              businessUnit:
+                                                selectedRow.businessUnitId,
+                                              invoiceInfo: data,
+                                            });
+                                            break;
+                                          default:
+                                            break;
+                                        }
+                                      }
+                                    });
+                                  }}
+                                >
                                   <FontAwesome
                                     name="pencil"
-                                    size={20}
+                                    size={24}
                                     color="black"
+                                    style={{ padding: 5 }}
                                   />
-                                }
-                                type="transparent"
-                                flex={false}
-                              />
-                            </TouchableOpacity>
+                                </TouchableOpacity>
+                              )}
                           </View>
                         </View>
                       </TouchableOpacity>
@@ -2393,6 +2616,8 @@ const SecondRoute = (props) => {
     setTableSettings,
     tableSettings,
     navigation,
+    permissionsByKeyValue,
+    permissions,
   } = props;
   const [data, setData] = useState({
     tableHead: [],
@@ -2421,6 +2646,10 @@ const SecondRoute = (props) => {
   const [financeForms, setFinanceForms] = useState([]);
   const [formsData, setFormsData] = useState(undefined);
 
+  const financePermissions = permissions.filter(
+    ({ group_key, sub_group_key }) =>
+      group_key === "transaction" && sub_group_key === "operations"
+  );
   const [filter, onFilter, setFilter] = useFilterHandle(
     {
       limit: pageSize,
@@ -3135,6 +3364,30 @@ const SecondRoute = (props) => {
     }
   };
 
+  const getPermission = (row) => {
+    return financePermissions.find(({ key }) => {
+      if (
+        paymentType.find(({ id }) => id === row.transactionType)?.key ===
+        "transaction_vat_advance"
+      ) {
+        return financePermissions.find(
+          ({ key }) => key === "transaction_advance_payment"
+        );
+      } else if (
+        paymentType.find(({ id }) => id === row.transactionType)?.key ===
+        "transaction_vat_invoice_payment"
+      ) {
+        return financePermissions.find(
+          ({ key }) => key === "transaction_invoice_payment"
+        );
+      } else {
+        return (
+          key === paymentType.find(({ id }) => id === row.transactionType)?.key
+        );
+      }
+    })?.permission;
+  };
+
   return (
     <>
       <Modal
@@ -3361,7 +3614,7 @@ const SecondRoute = (props) => {
                   <Modal
                     visible={isModalVisible}
                     transparent
-                    animationType="fade"
+                    animationType="slide"
                     onRequestClose={() => setModalVisible(false)}
                   >
                     <TouchableOpacity
@@ -3370,8 +3623,14 @@ const SecondRoute = (props) => {
                       onPress={() => {
                         setModalVisible(false);
                       }}
+                      pointerEvents="box-none"
                     >
-                      <View style={styles.modalContainer}>
+                      <View
+                        style={[
+                          styles.modalContainer,
+                          { zIndex: 10, elevation: 10 },
+                        ]}
+                      >
                         <Text style={styles.viewModalHeading}>
                           {selectedRow?.documentNumber}
                         </Text>
@@ -3381,113 +3640,178 @@ const SecondRoute = (props) => {
                             onPress={() => {
                               handleDetailsModal(selectedRow);
                             }}
-                          >
-                            <ProButton
-                              label={
-                                <AntDesign
-                                  name="eyeo"
-                                  size={20}
-                                  color="black"
-                                />
-                              }
-                              type="transparent"
-                              flex={false}
-                            />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.iconButton}
-                            onPress={() => {
-                              setDeleteModal(true);
+                            onLongPress={() => {
+                              handleDetailsModal(selectedRow);
                             }}
                           >
-                            <ProButton
-                              label={
+                            <AntDesign
+                              name="eyeo"
+                              size={24}
+                              color="black"
+                              style={{ padding: 5 }}
+                            />
+                          </TouchableOpacity>
+                          {getPermission(selectedRow) === 2 &&
+                            (tenant?.isAdmin ||
+                              isTransactionTypeAllowed(
+                                selectedRow?.transactionType,
+                                Object.keys(operationTypesByPermissionKey)?.map(
+                                  (i) => Number(i)
+                                ),
+                                0,
+                                permissionsByKeyValue[
+                                  operationTypesByPermissionKey[
+                                    selectedRow?.transactionType
+                                  ]
+                                ]?.options
+                              )) && (
+                              <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => {
+                                  setDeleteModal(true);
+                                }}
+                                onLongPress={() => {
+                                  setDeleteModal(true);
+                                }}
+                              >
                                 <FontAwesome
                                   name="trash"
-                                  size={20}
+                                  size={24}
                                   color="black"
+                                  style={{ padding: 5 }}
                                 />
-                              }
-                              type="transparent"
-                              flex={false}
-                            />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.iconButton}
-                            onPress={() => {
-                              handleFormModal(
+                              </TouchableOpacity>
+                            )}
+                          {getPermission(selectedRow) === 2 && (
+                            <TouchableOpacity
+                              style={styles.iconButton}
+                              onPress={() => {
+                                handleFormModal(
+                                  selectedRow?.transactionType,
+                                  selectedRow?.id
+                                );
+                              }}
+                              onLongPress={() => {
+                                handleFormModal(
+                                  selectedRow?.transactionType,
+                                  selectedRow?.id
+                                );
+                              }}
+                            >
+                              <MaterialCommunityIcons
+                                name="file-download-outline"
+                                size={24}
+                                color="black"
+                                style={{ padding: 5 }}
+                              />
+                            </TouchableOpacity>
+                          )}
+                          {getPermission(selectedRow) === 2 &&
+                            [4, 8, 9].includes(selectedRow?.transactionType) &&
+                            (tenant?.isAdmin ||
+                              isTransactionTypeAllowed(
                                 selectedRow?.transactionType,
-                                selectedRow?.id
-                              );
-                            }}
-                          >
-                            <ProButton
-                              label={
-                                <MaterialCommunityIcons
-                                  name="file-download-outline"
-                                  size={20}
-                                  color="black"
-                                />
-                              }
-                              type="transparent"
-                              flex={false}
-                            />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.iconButton}
-                            onPress={() => {
-                              fetchTransactionList({
-                                filter: {
-                                  ids: [selectedRow.cashboxTransactionId],
-                                },
-                              }).then((data) => {
-                                switch (selectedRow.transactionType) {
-                                  case 4:
-                                    navigation.push("FinanceTransfer", {
-                                      id: selectedRow.cashboxTransactionId,
-                                      businessUnit: selectedRow.businessUnitId,
-                                      operationList: data,
-                                    });
-                                    break;
-                                  case 8:
-                                    navigation.push("Payments", {
-                                      id: selectedRow.cashboxTransactionId,
-                                      businessUnit: selectedRow.businessUnitId,
-                                      operationList: data,
-                                    });
-                                    break;
-                                  case 9:
-                                    navigation.push("Invoice", {
-                                      id: selectedRow.cashboxTransactionId,
-                                      businessUnit: selectedRow.businessUnitId,
-                                      operationList: data,
-                                      isQueryVat:
-                                        selectedRow?.transactionType == 10
-                                          ? true
-                                          : false,
-                                    });
-                                    break;
-                                  default:
-                                    break;
-                                }
-                              });
-                            }}
-                          >
-                            <ProButton
-                              label={
+                                Object.keys(operationTypesByPermissionKey)?.map(
+                                  (i) => Number(i)
+                                ),
+                                1,
+                                permissionsByKeyValue[
+                                  operationTypesByPermissionKey[
+                                    selectedRow?.transactionType
+                                  ]
+                                ]?.options
+                              )) && (
+                              <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => {
+                                  fetchTransactionList({
+                                    filter: {
+                                      ids: [selectedRow.cashboxTransactionId],
+                                    },
+                                  }).then((data) => {
+                                    switch (selectedRow.transactionType) {
+                                      case 4:
+                                        navigation.push("FinanceTransfer", {
+                                          id: selectedRow.cashboxTransactionId,
+                                          businessUnit:
+                                            selectedRow.businessUnitId,
+                                          operationList: data,
+                                        });
+                                        break;
+                                      case 8:
+                                        navigation.push("Payments", {
+                                          id: selectedRow.cashboxTransactionId,
+                                          businessUnit:
+                                            selectedRow.businessUnitId,
+                                          operationList: data,
+                                        });
+                                        break;
+                                      case 9:
+                                        navigation.push("Invoice", {
+                                          id: selectedRow.cashboxTransactionId,
+                                          businessUnit:
+                                            selectedRow.businessUnitId,
+                                          operationList: data,
+                                          isQueryVat:
+                                            selectedRow?.transactionType == 10
+                                              ? true
+                                              : false,
+                                        });
+                                        break;
+                                      default:
+                                        break;
+                                    }
+                                  });
+                                }}
+                                onLongPress={() => {
+                                  fetchTransactionList({
+                                    filter: {
+                                      ids: [selectedRow.cashboxTransactionId],
+                                    },
+                                  }).then((data) => {
+                                    switch (selectedRow.transactionType) {
+                                      case 4:
+                                        navigation.push("FinanceTransfer", {
+                                          id: selectedRow.cashboxTransactionId,
+                                          businessUnit:
+                                            selectedRow.businessUnitId,
+                                          operationList: data,
+                                        });
+                                        break;
+                                      case 8:
+                                        navigation.push("Payments", {
+                                          id: selectedRow.cashboxTransactionId,
+                                          businessUnit:
+                                            selectedRow.businessUnitId,
+                                          operationList: data,
+                                        });
+                                        break;
+                                      case 9:
+                                        navigation.push("Invoice", {
+                                          id: selectedRow.cashboxTransactionId,
+                                          businessUnit:
+                                            selectedRow.businessUnitId,
+                                          operationList: data,
+                                          isQueryVat:
+                                            selectedRow?.transactionType == 10
+                                              ? true
+                                              : false,
+                                        });
+                                        break;
+                                      default:
+                                        break;
+                                    }
+                                  });
+                                }}
+                              >
                                 <FontAwesome
                                   name="pencil"
-                                  size={20}
+                                  size={24}
                                   color="black"
+                                  style={{ padding: 5 }}
                                 />
-                              }
-                              type="transparent"
-                              flex={false}
-                              onClick={() => {
-                                console.log("test");
-                              }}
-                            />
-                          </TouchableOpacity>
+                              </TouchableOpacity>
+                            )}
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -3528,6 +3852,7 @@ const Modul = ({ navigation }) => {
     BUSINESS_TKN_UNIT,
     tableSettings,
     setTableSettings,
+    permissions,
   } = useContext(TenantContext);
 
   const [routes] = React.useState([
@@ -3594,6 +3919,7 @@ const Modul = ({ navigation }) => {
             tableSettings={tableSettings}
             setTableSettings={setTableSettings}
             tenant={tenant}
+            permissions={permissions}
           />
         );
       case "second":
@@ -3608,6 +3934,7 @@ const Modul = ({ navigation }) => {
             mainCurrency={mainCurrency}
             tableSettings={tableSettings}
             setTableSettings={setTableSettings}
+            permissions={permissions}
           />
         );
       default:
@@ -3759,6 +4086,7 @@ const styles = StyleSheet.create({
   },
   viewModalHeading: {
     fontWeight: "bold",
+    marginBottom: 15,
   },
   modalContent: {
     gap: 18,

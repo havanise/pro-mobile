@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { View, StyleSheet, Text } from "react-native";
-import ProButton from "../ProButton";
 import Checkbox from "expo-checkbox";
 import ProAsyncSelect from "../ProAsyncSelect";
 import {

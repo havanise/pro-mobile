@@ -25,9 +25,8 @@ import {
   QuantityInput,
 } from "../../components";
 import { Table, Row } from "react-native-reanimated-table";
-import { fetchProductInvoices } from "../../api";
+import { fetchProductInvoices, fetchReturnInvoice } from "../../api";
 import { TenantContext } from "../../context";
-import CheckBox from "expo-checkbox";
 import moment from "moment";
 import { filter, find, isEmpty, map, reduce, uniqBy } from "lodash";
 
@@ -53,9 +52,10 @@ const InvoiceModalWithoutSN = ({
   setDiscount,
   setSelectedProducts,
   toggleModal,
-  permissionsByKeyValue,
   getValues,
-  editId = undefined
+  editId = undefined,
+  checkQuantityForContact = false,
+  businessId = undefined,
 }) => {
   const { BUSINESS_TKN_UNIT } = useContext(TenantContext);
 
@@ -117,9 +117,10 @@ const InvoiceModalWithoutSN = ({
                 <ProTooltip
                   containerStyle={{ width: 145, height: "auto" }}
                   popover={<Text>{counterparty || ""}</Text>}
-                >
-                  <Text>{counterparty ? counterparty?.trim() : "-"}</Text>
-                </ProTooltip>
+                  trigger={
+                    <Text>{counterparty ? counterparty?.trim() : "-"}</Text>
+                  }
+                />
               ),
               operation_date
                 .split(" ")[0]
@@ -171,151 +172,6 @@ const InvoiceModalWithoutSN = ({
       setLoading(false);
     }
   }, [invoicesByProduct, selectedInvoiceProducts, isVisible]);
-
-  const getColumns = ({ column }) => {
-    const selectedMeasurement = unitOfMeasurements?.find(
-      (measurement) => measurement?.id === unitOfMeasurementID
-    );
-    const mainMeasurement = unitOfMeasurements?.find(
-      (measurement) => measurement?.id === unitOfMeasurementId
-    );
-    const columns = [];
-    columns[column.indexOf("counterparty")] = {
-      title: "Qarşı tərəf",
-      dataIndex: "counterparty",
-      align: "left",
-      width: 150,
-      ellipsis: true,
-      render: (value, row) =>
-        row.invoice_type === 11 ? (
-          "İSTEHSALAT"
-        ) : row.invoice_type === 7 ? (
-          "İlkin qalıq"
-        ) : (
-          <Tooltip placement="topLeft" title={value || ""}>
-            <span>{value ? value?.trim() : "-"}</span>
-          </Tooltip>
-        ),
-    };
-
-    columns[column.indexOf("operation_date")] = {
-      title: "Tarix",
-      dataIndex: "operation_date",
-      render: (value) =>
-        value.split(" ")[0]?.replace(/(\d{4})-(\d\d)-(\d\d)/, "$3-$2-$1") ||
-        "-",
-    };
-    columns[column.indexOf("invoice_number")] = {
-      title: "Qaimə",
-      dataIndex: "invoice_number",
-      render: (value) => value,
-    };
-
-    if (
-      permissionsByOperationType[type] &&
-      permissionsByKeyValue[permissionsByOperationType[type]].permission !== 0
-    ) {
-      columns[column.indexOf("price")] = {
-        title: "Qiymət",
-        dataIndex: "price",
-        align: "left",
-        render: (value, { currency_code }) =>
-          `${formatNumberToLocale(
-            defaultNumberFormat(value)
-          )} ${currency_code}`,
-      };
-    } else if (!permissionsByOperationType[type]) {
-      columns[column.indexOf("price")] = {
-        title: "Qiymət",
-        dataIndex: "price",
-        align: "left",
-        render: (value, { currency_code }) =>
-          `${formatNumberToLocale(
-            defaultNumberFormat(value)
-          )} ${currency_code}`,
-      };
-    }
-    columns[column.indexOf("quantity")] = {
-      title: "Anbardakı say",
-      dataIndex: "quantity",
-      align: "center",
-      render: (value, row) => {
-        return `${formatNumberToLocale(defaultNumberFormat(value))} ${
-          unitOfMeasurements?.length > 1
-            ? row?.unit_of_measurement_name ??
-              mainMeasurement?.unitOfMeasurementName
-            : ""
-        }`;
-      },
-    };
-    if (unitOfMeasurements?.length > 1) {
-      columns[column.indexOf("convertedQuantity")] = {
-        title: `Anbardakı say (${selectedMeasurement?.unitOfMeasurementName})`,
-        width: 150,
-        dataIndex: "convertedQuantity",
-        align: "center",
-        render: (value, row) => (
-          <>
-            {`${formatNumberToLocale(defaultNumberFormat(Number(value)))}`}
-            <Tooltip
-              title={unitOfMeasurements?.map((unit) => (
-                <div>
-                  {`${formatNumberToLocale(
-                    defaultNumberFormat(
-                      math.mul(
-                        math.div(
-                          Number(row.quantity || 0),
-                          Number(unit?.coefficientRelativeToMain || 1)
-                        ),
-                        Number(row?.coefficient || 0)
-                      )
-                    )
-                  )} ${unit.unitOfMeasurementName}`}
-                </div>
-              ))}
-            >
-              <Button type="link" style={{ fontSize: "20px" }}>
-                <Icon component={FaInfoCircle} />
-              </Button>
-            </Tooltip>
-          </>
-        ),
-      };
-    }
-    columns.unshift({
-      title: "№",
-      width: 65,
-      render: (value, row, index) => index + 1,
-    });
-    columns.push({
-      title: "Seç",
-      dataIndex: "invoice_product_id",
-      key: "quantityInput",
-      align: "center",
-      width: 150,
-      render: (value, row) => {
-        return (
-          <QuantityInput
-            onChange={handleProductQuantityChange}
-            product={row}
-            hasMultiMeasurement={unitOfMeasurements.length > 1}
-            selectedProduct={{
-              ...selectedInvoiceProducts?.find(
-                ({ invoice_product_id }) => invoice_product_id === value
-              ),
-            }}
-            type="sales"
-            value={`${
-              selectedInvoiceProducts?.find(
-                ({ invoice_product_id }) => invoice_product_id === value
-              )?.invoiceQuantity || 0
-            }`}
-          />
-        );
-      },
-    });
-    return columns;
-  };
 
   const confirmModal = () => {
     const validInvoiceProductsCount =
@@ -696,31 +552,69 @@ const InvoiceModalWithoutSN = ({
   useEffect(() => {
     if (isVisible) {
       setLoading(true);
-      fetchProductInvoices({
-        filter: {
-          datetime: moment(getValues("operationDate"))?.format(
-            fullDateTimeWithSecond
-          ),
-          ...(unitOfMeasurementID && { unitOfMeasurementID }),
-          invoiceId: editId
-        },
-        apiEnd: getValues("stockFrom"),
-        apiEndTwo: id,
-      }).then((data) => {
-        const invoiceData = getFilteredInvoiceByUsedProduct(
-          Object.values(data)
-        );
-        setInvoicesByProduct(Object.values(data));
-        if (
-          !isEmpty(filter(invoiceProducts, (row) => row.invoice_product_id))
-        ) {
-          setSelectedInvoiceProducts(invoiceProducts);
-          return;
-        } else {
-          divideQuantityForInvoices(invoiceData, unitOfMeasurements.length > 1);
-          return;
-        }
-      });
+      if (type === "returnFromCustomer") {
+        fetchReturnInvoice({
+          filter: {
+            datetime: moment(getValues("operationDate"))?.format(
+              fullDateTimeWithSecond
+            ),
+            ...(unitOfMeasurementID && { unitOfMeasurementID }),
+            invoiceId: editId,
+            ...(checkQuantityForContact
+              ? { client: getValues("counterparty") }
+              : []),
+            businessUnitIds: businessId,
+          },
+          apiEnd: getValues("stockTo"),
+          apiEndTwo: id,
+        }).then((data) => {
+          const invoiceData = getFilteredInvoiceByUsedProduct(
+            Object.values(data)
+          );
+          setInvoicesByProduct(Object.values(data));
+          if (
+            !isEmpty(filter(invoiceProducts, (row) => row.invoice_product_id))
+          ) {
+            setSelectedInvoiceProducts(invoiceProducts);
+            return;
+          } else {
+            divideQuantityForInvoices(
+              invoiceData,
+              unitOfMeasurements.length > 1
+            );
+            return;
+          }
+        });
+      } else {
+        fetchProductInvoices({
+          filter: {
+            datetime: moment(getValues("operationDate"))?.format(
+              fullDateTimeWithSecond
+            ),
+            ...(unitOfMeasurementID && { unitOfMeasurementID }),
+            invoiceId: editId,
+          },
+          apiEnd: getValues("stockFrom"),
+          apiEndTwo: id,
+        }).then((data) => {
+          const invoiceData = getFilteredInvoiceByUsedProduct(
+            Object.values(data)
+          );
+          setInvoicesByProduct(Object.values(data));
+          if (
+            !isEmpty(filter(invoiceProducts, (row) => row.invoice_product_id))
+          ) {
+            setSelectedInvoiceProducts(invoiceProducts);
+            return;
+          } else {
+            divideQuantityForInvoices(
+              invoiceData,
+              unitOfMeasurements.length > 1
+            );
+            return;
+          }
+        });
+      }
     } else {
       clearModal();
     }

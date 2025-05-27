@@ -7,6 +7,9 @@ import FinanceTransfer from "./FinanceTransfer";
 import Payments from "./Payments";
 import SaleTransfer from "./SaleTransfer";
 import WritingOff from "./WritingOff";
+import Contacts from "./Contacts";
+import ReturnFromCustomer from "./ReturnFromCustomer";
+import AddProduct from "./AddProduct"
 
 export {
   Login,
@@ -18,4 +21,7 @@ export {
   Payments,
   SaleTransfer,
   WritingOff,
+  Contacts,
+  ReturnFromCustomer,
+  AddProduct,
 };

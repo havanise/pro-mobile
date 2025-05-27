@@ -16,6 +16,7 @@ import PaymentType from "./PaymentType";
 import PaymentRow from "./PaymentRow";
 import BronModal from "./BronModal";
 import ProWarningModal from "./ProWarningModal"
+import Email from './Email'
 
 export {
   ProInput,
@@ -34,5 +35,6 @@ export {
   PaymentType,
   PaymentRow,
   BronModal,
-  ProWarningModal
+  ProWarningModal,
+  Email
 };

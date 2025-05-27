@@ -18,7 +18,7 @@ import {
 } from "../../utils";
 import { ProButton, ProText, ProTooltip } from "../../components";
 import { Table, Row } from "react-native-reanimated-table";
-import { fetchProductInvoices } from "../../api";
+import { fetchProductInvoices, fetchReturnInvoice } from "../../api";
 import { TenantContext } from "../../context";
 import CheckBox from "expo-checkbox";
 import moment from "moment";
@@ -46,13 +46,14 @@ const InvoiceModalWithSN = ({
   setDiscount,
   setSelectedProducts,
   toggleModal,
-  permissionsByKeyValue,
   selectedProductsFromModal,
   setSelectedProductFromModal = () => {},
   isProductModal = false,
   productsToHandle = [],
   getValues,
-  editId = undefined
+  editId = undefined,
+  checkQuantityForContact = false,
+  businessId = undefined,
 }) => {
   const { BUSINESS_TKN_UNIT } = useContext(TenantContext);
 
@@ -61,7 +62,7 @@ const InvoiceModalWithSN = ({
   const [data, setData] = useState(tableData);
   const [selectedInvoiceProducts, setSelectedInvoiceProducts] = useState([]);
   const [allInvProductsCheck, setAllInvProductsCheck] = useState(false);
-  const [invoicesByProduct, setInvoicesByProducts] = useState([]);
+  const [invoicesByProduct, setInvoicesByProduct] = useState([]);
 
   const [filters, setFilters] = useState({
     counterparties: [],
@@ -120,9 +121,10 @@ const InvoiceModalWithSN = ({
                 <ProTooltip
                   containerStyle={{ width: 145, height: "auto" }}
                   popover={<Text>{counterparty || ""}</Text>}
-                >
-                  <Text>{counterparty ? counterparty?.trim() : "-"}</Text>
-                </ProTooltip>
+                  trigger={
+                    <Text>{counterparty ? counterparty?.trim() : "-"}</Text>
+                  }
+                />
               ),
               operation_date
                 .split(" ")[0]
@@ -218,7 +220,7 @@ const InvoiceModalWithSN = ({
   };
 
   const clearModal = () => {
-    setInvoicesByProducts([]);
+    setInvoicesByProduct([]);
     setFilters({
       counterparties: [],
       invoices: [],
@@ -228,18 +230,37 @@ const InvoiceModalWithSN = ({
 
   useEffect(() => {
     if (isVisible) {
-      fetchProductInvoices({
-        filter: {
-          datetime: moment(getValues("operationDate"))?.format(
-            fullDateTimeWithSecond
-          ),
-          invoiceId: editId
-        },
-        apiEnd: getValues("stockFrom"),
-        apiEndTwo: id,
-      }).then((data) => {
-        setInvoicesByProducts(Object.values(data));
-      });
+      if (type === "returnFromCustomer") {
+        fetchReturnInvoice({
+          filter: {
+            datetime: moment(getValues("operationDate"))?.format(
+              fullDateTimeWithSecond
+            ),
+            invoiceId: editId,
+            ...(checkQuantityForContact
+              ? { client: getValues("counterparty") }
+              : []),
+            businessUnitIds: businessId,
+          },
+          apiEnd: getValues("stockTo"),
+          apiEndTwo: id,
+        }).then((data) => {
+          setInvoicesByProduct(Object.values(data));
+        });
+      } else {
+        fetchProductInvoices({
+          filter: {
+            datetime: moment(getValues("operationDate"))?.format(
+              fullDateTimeWithSecond
+            ),
+            invoiceId: editId,
+          },
+          apiEnd: getValues("stockFrom"),
+          apiEndTwo: id,
+        }).then((data) => {
+          setInvoicesByProduct(Object.values(data));
+        });
+      }
       if (productsToHandle.length === 0) {
         setSelectedInvoiceProducts(Object.values(invoiceProducts || []));
       } else {
@@ -428,6 +449,7 @@ const InvoiceModalWithSN = ({
               ...items,
               serialNumbers: serialNumbers,
               invoice_product_id: invoice_product_id,
+              invoiceProducts: invoiceProducts,
               invoiceQuantity: serialNumbers?.length,
             };
           }

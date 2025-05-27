@@ -557,22 +557,24 @@ const FirstRoute = (props) => {
               name="productionProduct"
             />
           )}
-          <ProAsyncSelect
-            label="İcra statusu"
-            data={statusData[0]?.statuses?.map((item) => ({
-              ...item,
-              label: item.name,
-              value: item.id,
-            }))}
-            setData={() => {}}
-            fetchData={() => {}}
-            async={false}
-            filter={{}}
-            required
-            control={control}
-            allowClear={false}
-            name="status"
-          />
+          {statusData.some((item) => item.isStatusActive === true) ? (
+            <ProAsyncSelect
+              label="İcra statusu"
+              data={statusData[0]?.statuses?.map((item) => ({
+                ...item,
+                label: item.name,
+                value: item.id,
+              }))}
+              setData={() => {}}
+              fetchData={() => {}}
+              async={false}
+              filter={{}}
+              required
+              control={control}
+              allowClear={false}
+              name="status"
+            />
+          ) : null}
         </View>
         <View style={{ display: "flex", flexDirection: "row" }}>
           <ProButton
@@ -843,19 +845,21 @@ const SecondRoute = (props) => {
                         {currentMeasurement?.unitOfMeasurementName?.toLowerCase()}
                       </Text>
                     }
-                  >
-                    <Text>
-                      {currentMeasurement?.unitOfMeasurementName
-                        ? (currentMeasurement?.unitOfMeasurementName?.length > 6
-                            ? `${currentMeasurement?.unitOfMeasurementName?.slice(
-                                0,
-                                6
-                              )}...`
-                            : currentMeasurement?.unitOfMeasurementName
-                          )?.toLowerCase()
-                        : ""}
-                    </Text>
-                  </ProTooltip>
+                    trigger={
+                      <Text>
+                        {currentMeasurement?.unitOfMeasurementName
+                          ? (currentMeasurement?.unitOfMeasurementName?.length >
+                            6
+                              ? `${currentMeasurement?.unitOfMeasurementName?.slice(
+                                  0,
+                                  6
+                                )}...`
+                              : currentMeasurement?.unitOfMeasurementName
+                            )?.toLowerCase()
+                          : ""}
+                      </Text>
+                    }
+                  />
                 </View>
               )}
             </View>,
@@ -906,19 +910,20 @@ const SecondRoute = (props) => {
                       ))}
                     </View>
                   }
-                >
-                  <View
-                    style={{
-                      backgroundColor: "#45a8e291",
-                      borderRadius: 5,
-                      width: 24,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text>{serialNumbers?.length}</Text>
-                  </View>
-                </ProTooltip>
+                  trigger={
+                    <View
+                      style={{
+                        backgroundColor: "#45a8e291",
+                        borderRadius: 5,
+                        width: 24,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text>{serialNumbers?.length}</Text>
+                    </View>
+                  }
+                />
               )}
             </View>,
             <ProButton
@@ -1401,13 +1406,15 @@ const SecondRoute = (props) => {
           getValues={getValues}
           handleModal={togleInvoiceModal}
           isVisible={invoiceModalIsVisible}
-          BUSINESS_TKN_UNIT={id
-            ? businessUnit === null
-              ? 0
-              : []
-            : BUSINESS_TKN_UNIT
-            ? BUSINESS_TKN_UNIT
-            : undefined}
+          BUSINESS_TKN_UNIT={
+            id
+              ? businessUnit === null
+                ? 0
+                : []
+              : BUSINESS_TKN_UNIT
+              ? BUSINESS_TKN_UNIT
+              : undefined
+          }
           salesStocks={getValues("stockFrom")}
           sales
           type="writingOff"
@@ -1680,152 +1687,143 @@ const WritingOff = ({ navigation, route }) => {
     const { content } = invoiceProducts;
     const selectedProducts = {};
     const selectedProductIds = content.map(({ productId }) => productId);
-    fetchTransferProductsFromCatalog({
-      apiEnd: stockFromId,
-      filter: {
-        invoiceId: id,
-        product: selectedProductIds,
-        datetime: operationDate,
-      },
-    }).then((data) => {
-      content.forEach(
-        ({
-          productId,
-          productName,
-          quantity,
-          serialNumber,
-          barcode,
-          product_code,
-          rootCatalogName,
-          unitOfMeasurementName,
-          attachedInvoiceProductId,
-          draftRootInvoiceProductId,
-          isServiceType,
-          catalogId,
-          catalogName,
-          coefficient,
-          quantityInStock,
-          unitOfMeasurementId,
-          unitOfMeasurements,
-          originalQuantity,
-          bronQuantityInStock,
-          salesDraftQuantityInStock,
-          brandName,
-          uniqueKey,
-          usedQuantity,
-          weightPerUnit,
-          volumePerUnit,
-        }) => {
-          if (selectedProducts[uniqueKey]) {
-            const invoiceProductId = isDraft
-              ? draftRootInvoiceProductId
-              : attachedInvoiceProductId;
+    content.forEach(
+      ({
+        productId,
+        productName,
+        quantity,
+        serialNumber,
+        barcode,
+        product_code,
+        rootCatalogName,
+        unitOfMeasurementName,
+        attachedInvoiceProductId,
+        draftRootInvoiceProductId,
+        isServiceType,
+        catalogId,
+        catalogName,
+        coefficient,
+        quantityInStock,
+        unitOfMeasurementId,
+        unitOfMeasurements,
+        originalQuantity,
+        bronQuantityInStock,
+        salesDraftQuantityInStock,
+        brandName,
+        uniqueKey,
+        usedQuantity,
+        weightPerUnit,
+        volumePerUnit,
+      }) => {
+        if (selectedProducts[uniqueKey]) {
+          const invoiceProductId = isDraft
+            ? draftRootInvoiceProductId
+            : attachedInvoiceProductId;
 
-            const invoiceQuantity = Number(
-              math.div(Number(quantity), Number(coefficient || 1))
-            );
-            const { invoiceProducts } = selectedProducts[uniqueKey];
+          const invoiceQuantity = Number(
+            math.div(Number(quantity), Number(coefficient || 1))
+          );
+          const { invoiceProducts } = selectedProducts[uniqueKey];
 
-            const updatedInvoiceProducts = invoiceProducts?.some(
-              (p) => p.invoice_product_id === invoiceProductId
-            )
-              ? invoiceProducts?.map((product) =>
-                  product.invoice_product_id === invoiceProductId
-                    ? {
-                        ...product,
-                        invoiceQuantity: math.add(
-                          product.invoiceQuantity,
-                          invoiceQuantity
-                        ),
-                      }
-                    : product
-                )
-              : [
-                  ...invoiceProducts,
-                  {
-                    invoice_product_id: invoiceProductId,
-                    invoiceQuantity,
-                    usedQuantity: roundToDown(Number(usedQuantity), 4),
-                  },
-                ];
-
-            selectedProducts[uniqueKey] = {
-              ...selectedProducts[uniqueKey],
-              serialNumbers: serialNumber
-                ? [...selectedProducts[uniqueKey].serialNumbers, serialNumber]
-                : undefined,
-              invoiceQuantity: math.add(
-                roundToDown(Number(originalQuantity), 4),
-                selectedProducts[uniqueKey].invoiceQuantity
-              ),
-              invoiceProducts: updatedInvoiceProducts,
-            };
-          } else {
-            selectedProducts[uniqueKey] = {
-              uniqueKey,
-              id: productId,
-              productUniqueId: uniqueKey,
-              name: productName,
-              barcode: undefined,
-              unitOfMeasurementName,
-              unitOfMeasurementId, // main measurement
-              unitOfMeasurementID: unitOfMeasurementId,
-              coefficientRelativeToMain: coefficient,
-              hasMultiMeasurement: unitOfMeasurements?.length > 1,
-              unitOfMeasurements: [
+          const updatedInvoiceProducts = invoiceProducts?.some(
+            (p) => p.invoice_product_id === invoiceProductId
+          )
+            ? invoiceProducts?.map((product) =>
+                product.invoice_product_id === invoiceProductId
+                  ? {
+                      ...product,
+                      invoiceQuantity: math.add(
+                        product.invoiceQuantity,
+                        invoiceQuantity
+                      ),
+                    }
+                  : product
+              )
+            : [
+                ...invoiceProducts,
                 {
-                  id: unitOfMeasurementId,
-                  unitOfMeasurementName,
-                  coefficient,
-                  coefficientRelativeToMain: coefficient,
-                  barcode,
+                  invoice_product_id: invoiceProductId,
+                  invoiceQuantity,
+                  usedQuantity: roundToDown(Number(usedQuantity), 4),
                 },
-                ...(unitOfMeasurements
-                  ?.filter(
-                    (unit) => unitOfMeasurementId !== unit?.unitOfMeasurementId
-                  )
-                  ?.map((unit) => ({
-                    ...unit,
-                    id: unit?.unitOfMeasurementId,
-                  })) ?? []),
-              ],
+              ];
 
-              serialNumbers: serialNumber ? [serialNumber] : undefined,
-              invoiceQuantity: Number(originalQuantity || 0),
-              quantity: Number(quantityInStock || 0),
-              totalQuantity: Number(quantityInStock || 0),
-              hasMultiMeasurement: unitOfMeasurements?.length > 1,
-              invoiceProducts: [
-                {
-                  invoice_product_id: isDraft
-                    ? draftRootInvoiceProductId
-                    : attachedInvoiceProductId,
-                  invoiceQuantity: Number(
-                    `${math.div(Number(quantity), Number(coefficient || 1))}`
-                  ),
-                },
-              ],
-
-              barcode: barcode ?? undefined,
-              product_code,
-              bronQuantityInStock,
-              salesDraftQuantityInStock,
-              brandName,
-              catalog: {
-                id: catalogId,
-                name: catalogName,
-                rootName: rootCatalogName,
-                isWithoutSerialNumber: !serialNumber,
-                isServiceType,
+          selectedProducts[uniqueKey] = {
+            ...selectedProducts[uniqueKey],
+            serialNumbers: serialNumber
+              ? [...selectedProducts[uniqueKey].serialNumbers, serialNumber]
+              : undefined,
+            invoiceQuantity: math.add(
+              roundToDown(Number(originalQuantity), 4),
+              selectedProducts[uniqueKey].invoiceQuantity
+            ),
+            invoiceProducts: updatedInvoiceProducts,
+          };
+        } else {
+          selectedProducts[uniqueKey] = {
+            uniqueKey,
+            id: productId,
+            productUniqueId: uniqueKey,
+            name: productName,
+            barcode: undefined,
+            unitOfMeasurementName,
+            unitOfMeasurementId, // main measurement
+            unitOfMeasurementID: unitOfMeasurementId,
+            coefficientRelativeToMain: coefficient,
+            hasMultiMeasurement: unitOfMeasurements?.length > 1,
+            unitOfMeasurements: [
+              {
+                id: unitOfMeasurementId,
+                unitOfMeasurementName,
+                coefficient,
+                coefficientRelativeToMain: coefficient,
+                barcode,
               },
-              weightPerUnit,
-              volumePerUnit,
-            };
-          }
+              ...(unitOfMeasurements
+                ?.filter(
+                  (unit) => unitOfMeasurementId !== unit?.unitOfMeasurementId
+                )
+                ?.map((unit) => ({
+                  ...unit,
+                  id: unit?.unitOfMeasurementId,
+                })) ?? []),
+            ],
+
+            serialNumbers: serialNumber ? [serialNumber] : undefined,
+            invoiceQuantity: Number(originalQuantity || 0),
+            quantity: Number(quantityInStock || 0),
+            totalQuantity: Number(quantityInStock || 0),
+            hasMultiMeasurement: unitOfMeasurements?.length > 1,
+            invoiceProducts: [
+              {
+                invoice_product_id: isDraft
+                  ? draftRootInvoiceProductId
+                  : attachedInvoiceProductId,
+                invoiceQuantity: Number(
+                  `${math.div(Number(quantity), Number(coefficient || 1))}`
+                ),
+              },
+            ],
+
+            barcode: barcode ?? undefined,
+            product_code,
+            bronQuantityInStock,
+            salesDraftQuantityInStock,
+            brandName,
+            catalog: {
+              id: catalogId,
+              name: catalogName,
+              rootName: rootCatalogName,
+              isWithoutSerialNumber: !serialNumber,
+              isServiceType,
+            },
+            weightPerUnit,
+            volumePerUnit,
+          };
         }
-      );
-      setSelectedProducts(Object.values(selectedProducts));
-    });
+      }
+    );
+    setSelectedProducts(Object.values(selectedProducts));
 
     setEditDate(moment(operationDate, fullDateTimeWithSecond).toDate());
 
@@ -1955,7 +1953,7 @@ const WritingOff = ({ navigation, route }) => {
         invoice:
           expenseType === 1 ? expense : expenseType === 3 ? expense : null,
         description: null,
-        operationDate:  moment(operationDate).format(fullDateTimeWithSecond),
+        operationDate: moment(operationDate).format(fullDateTimeWithSecond),
         operator: profile.id,
         invoiceProducts_ul: handleSelectedProducts(selectedProducts, id, false),
         status: status || null,

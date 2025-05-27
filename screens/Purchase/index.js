@@ -6,6 +6,8 @@ import {
   useWindowDimensions,
   ScrollView,
   StyleSheet,
+  Modal,
+  Pressable,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import moment from "moment";
@@ -17,7 +19,7 @@ import {
 import uuid from "react-uuid";
 import { TenantContext } from "../../context";
 import { TabView, TabBar } from "react-native-tab-view";
-import { debounce, values, find, isNil, trim } from "lodash";
+import { debounce, reduce, find, isNil, trim } from "lodash";
 import { useApi } from "../../hooks";
 import { Feather, AntDesign, FontAwesome } from "@expo/vector-icons";
 import {
@@ -67,6 +69,8 @@ import {
 import AddSerialNumbers from "../../components/AddSerialNumbers";
 import AddFromCatalog from "../../components/AddFromCatalog";
 import { fetchTransferProductsFromCatalog } from "../../api/sale";
+import Contacts from "../Contacts";
+import AddProduct from "../AddProduct";
 
 const math = require("exact-math");
 const BigNumber = require("bignumber.js");
@@ -118,6 +122,8 @@ const FirstRoute = (props) => {
   const [contracts, setContracts] = useState([]);
   const [stock, setStock] = useState([]);
   const [defaultSelectedSalesman, setDefaultSelectedSalesman] = useState([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [addedCounterparty, setAddedCounterparty] = useState([]);
 
   const { isLoading, run } = useApi({
     deferFn: getCurrencies,
@@ -312,239 +318,324 @@ const FirstRoute = (props) => {
     }
   }, [getValues("counterparty")]);
 
-  return (
-    <ScrollView>
-      <View
-        style={{
-          paddingTop: 40,
-          paddingLeft: 10,
-          paddingRight: 10,
-          paddingBottom: 40,
-        }}
-      >
-        {id && (
-          <ProText variant="heading" style={{ color: "black" }}>
-            Sənəd: {invoiceInfo.invoiceNumber}
-          </ProText>
-        )}
-        <ProText variant="heading" style={{ color: "black" }}>
-          {id ? "Düzəliş et" : "Yeni əməliyyat"}
-        </ProText>
-        <Text style={{ fontSize: 18 }}>Alış</Text>
+  const addContactToSelect = (res) => {
+    const filters = {
+      limit: 10,
+      page: 1,
+      ids: [res.id],
+      applyBusinessUnitTenantPersonFilter: 1,
+      businessUnitIds:
+        id && invoiceInfo
+          ? invoiceInfo?.businessUnitId === null
+            ? [0]
+            : [invoiceInfo?.businessUnitId]
+          : BUSINESS_TKN_UNIT
+          ? [BUSINESS_TKN_UNIT]
+          : undefined,
+    };
 
-        <View
-          style={{
-            marginTop: 20,
-            marginBottom: 20,
-            padding: 10,
-            borderRadius: 4,
-            backgroundColor: "#fff",
-            display: "flex",
-            gap: 10,
+    getCounterparties({ filters }).then((dat) => {
+      setAddedCounterparty(
+        dat.map((item) => ({ ...item, label: item.name, value: item.id }))
+      );
+      setValue("counterparty", res.id);
+    });
+  };
+
+  return (
+    <>
+      {modalVisible && (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => {
+            setModalVisible(false);
           }}
         >
-          <ProDateTimePicker
-            name="operationDate"
-            control={control}
-            setValue={setValue}
-            editDate={editDate}
-          />
-          <ProAsyncSelect
-            label="Valyuta"
-            data={currencies}
-            setData={setCurrencies}
-            fetchData={getCurrencies}
-            async={false}
-            filter={{
-              limit: 1000,
-              withRatesOnly: 1,
-              applyBusinessUnitTenantPersonFilter: 1,
-              businessUnitIds: id
-                ? businessUnit === null
-                  ? [0]
-                  : [businessUnit]
-                : BUSINESS_TKN_UNIT
-                ? [BUSINESS_TKN_UNIT]
-                : undefined,
-            }}
-            required
-            control={control}
-            allowClear={false}
-            name="currency"
-          />
-          <ProAsyncSelect
-            label="Qarşı tərəf"
-            data={
-              id
-                ? [
-                    {
-                      label: invoiceInfo.counterparty,
-                      value: invoiceInfo.supplierId || invoiceInfo.clientId,
-                      id: invoiceInfo.supplierId || invoiceInfo.clientId,
-                    },
-                    ...counterparties,
-                  ]
-                : counterparties
-            }
-            setData={setCounterparties}
-            fetchData={getCounterparties}
-            async
-            filter={{
-              limit: 20,
-              page: 1,
-              categories: [4],
-              applyBusinessUnitTenantPersonFilter: 1,
-              businessUnitIds: id
-                ? businessUnit === null
-                  ? [0]
-                  : [businessUnit]
-                : BUSINESS_TKN_UNIT
-                ? [BUSINESS_TKN_UNIT]
-                : undefined,
-            }}
-            control={control}
-            required
-            name="counterparty"
-          />
-          <ProAsyncSelect
-            label="Menecer"
-            data={[
-              ...defaultSelectedSalesman,
-              ...employees.filter(
-                (item) =>
-                  !defaultSelectedSalesman
-                    .map(({ id }) => id)
-                    ?.includes(item.id)
-              ),
-            ]}
-            setData={setEmployees}
-            fetchData={getEmployees}
-            async
-            filter={{
-              limit: 20,
-              page: 1,
-              applyBusinessUnitTenantPersonFilter: 1,
-              businessUnitIds: id
-                ? businessUnit === null
-                  ? [0]
-                  : [businessUnit]
-                : BUSINESS_TKN_UNIT
-                ? [BUSINESS_TKN_UNIT]
-                : undefined,
-            }}
-            control={control}
-            required
-            valueName="lastName"
-            combineValue
-            name="saleManager"
-          />
-          <ProAsyncSelect
-            label="Müqavilə"
-            disabled={!getValues("counterparty")}
-            data={contracts}
-            setData={setContracts}
-            fetchData={getContracts}
-            valueName="contract_no"
-            valueNameTwo="serialNumber"
-            async
-            filter={{
-              limit: 20,
-              page: 1,
-              status: 1,
-              directions: [1],
-              businessUnitIds: id
-                ? businessUnit === null
-                  ? [0]
-                  : [businessUnit]
-                : BUSINESS_TKN_UNIT
-                ? [BUSINESS_TKN_UNIT]
-                : undefined,
-              contacts: [getValues("counterparty")],
-              endDateFrom: moment(getValues("operationDate"))?.format(
-                "DD-MM-YYYY"
-              ),
-            }}
-            control={control}
-            name="contract"
-          />
-          <ProAsyncSelect
-            label="Agent"
-            data={agents}
-            setData={setAgents}
-            fetchData={getCounterparties}
-            async
-            filter={{
-              limit: 20,
-              page: 1,
-            }}
-            control={control}
-            name="agent"
-          />
-          <ProAsyncSelect
-            label="Anbar(Haraya)"
-            data={
-              id
-                ? [
-                    {
-                      label: invoiceInfo.stockToName,
-                      value: invoiceInfo.stockId,
-                    },
-                    ...stock,
-                  ]
-                : stock
-            }
-            async={false}
-            setData={setStock}
-            fetchData={getStock}
-            filter={{
-              limit: 1000,
-              applyBusinessUnitTenantPersonFilter: 1,
-              businessUnitIds: id
-                ? businessUnit === null
-                  ? [0]
-                  : [businessUnit]
-                : BUSINESS_TKN_UNIT
-                ? [BUSINESS_TKN_UNIT]
-                : undefined,
-              isActive: 1,
-            }}
-            control={control}
-            name="stockTo"
-            required
-          />
-          <ProAsyncSelect
-            label="İcra statusu"
-            data={statusData[0]?.statuses?.map((item) => ({
-              ...item,
-              label: item.name,
-              value: item.id,
-            }))}
-            setData={() => {}}
-            fetchData={() => {}}
-            async={false}
-            filter={{}}
-            required
-            control={control}
-            allowClear={false}
-            name="status"
-          />
-        </View>
+          <View style={styles.centeredView}>
+            <View style={styles.modalView}>
+              <Contacts
+                fromOperation={"purchase"}
+                closeModal={() => {
+                  setModalVisible(false);
+                }}
+                addContactToSelect={addContactToSelect}
+              />
+              <Pressable
+                style={[styles.buttonModal]}
+                onPress={() => setModalVisible(false)}
+              >
+                <AntDesign name="close" size={18} color="black" />
+              </Pressable>
+            </View>
+          </View>
+          <Toast />
+        </Modal>
+      )}
+      <ScrollView>
+        <View
+          style={{
+            paddingTop: 40,
+            paddingLeft: 10,
+            paddingRight: 10,
+            paddingBottom: 40,
+          }}
+        >
+          {id && (
+            <ProText variant="heading" style={{ color: "black" }}>
+              Sənəd: {invoiceInfo.invoiceNumber}
+            </ProText>
+          )}
+          <ProText variant="heading" style={{ color: "black" }}>
+            {id ? "Düzəliş et" : "Yeni əməliyyat"}
+          </ProText>
+          <Text style={{ fontSize: 18 }}>Alış</Text>
 
-        <View style={{ display: "flex", flexDirection: "row" }}>
-          <ProButton
-            label="Təsdiq et"
-            type="primary"
-            onClick={handleSubmit(onSubmit)}
-            loading={loading}
-          />
-          <ProButton
-            label="İmtina"
-            type="transparent"
-            onClick={() => navigation.push("DashboardTabs")}
-          />
+          <View
+            style={{
+              marginTop: 20,
+              marginBottom: 20,
+              padding: 10,
+              borderRadius: 4,
+              backgroundColor: "#fff",
+              display: "flex",
+              gap: 10,
+            }}
+          >
+            <ProDateTimePicker
+              name="operationDate"
+              control={control}
+              setValue={setValue}
+              editDate={editDate}
+            />
+            <ProAsyncSelect
+              label="Valyuta"
+              data={currencies}
+              setData={setCurrencies}
+              fetchData={getCurrencies}
+              async={false}
+              filter={{
+                limit: 1000,
+                withRatesOnly: 1,
+                applyBusinessUnitTenantPersonFilter: 1,
+                businessUnitIds: id
+                  ? businessUnit === null
+                    ? [0]
+                    : [businessUnit]
+                  : BUSINESS_TKN_UNIT
+                  ? [BUSINESS_TKN_UNIT]
+                  : undefined,
+              }}
+              required
+              control={control}
+              allowClear={false}
+              name="currency"
+            />
+            <View style={{ position: "relative" }}>
+              <View style={{ position: "absolute", right: 10, top: 10 }}>
+                <ProButton
+                  label={<AntDesign name="pluscircle" size={14} />}
+                  type="transparent"
+                  onClick={() => {
+                    setModalVisible(true);
+                  }}
+                  padding={"0px"}
+                />
+              </View>
+              <ProAsyncSelect
+                label="Qarşı tərəf"
+                data={
+                  id
+                    ? [
+                        {
+                          label: invoiceInfo.counterparty,
+                          value: invoiceInfo.supplierId || invoiceInfo.clientId,
+                          id: invoiceInfo.supplierId || invoiceInfo.clientId,
+                        },
+                        ...addedCounterparty,
+                        ...counterparties.filter(
+                          (supplier) =>
+                            supplier.id !== invoiceInfo?.supplierId &&
+                            !addedCounterparty
+                              .map(({ id }) => id)
+                              ?.includes(supplier.id)
+                        ),
+                      ]
+                    : [
+                        ...addedCounterparty,
+                        ...counterparties.filter(
+                          (supplier) =>
+                            supplier.id !== invoiceInfo?.supplierId &&
+                            !addedCounterparty
+                              .map(({ id }) => id)
+                              ?.includes(supplier.id)
+                        ),
+                      ]
+                }
+                setData={setCounterparties}
+                fetchData={getCounterparties}
+                async
+                filter={{
+                  limit: 20,
+                  page: 1,
+                  categories: [4],
+                  applyBusinessUnitTenantPersonFilter: 1,
+                  businessUnitIds: id
+                    ? businessUnit === null
+                      ? [0]
+                      : [businessUnit]
+                    : BUSINESS_TKN_UNIT
+                    ? [BUSINESS_TKN_UNIT]
+                    : undefined,
+                }}
+                control={control}
+                required
+                name="counterparty"
+              />
+            </View>
+            <ProAsyncSelect
+              label="Menecer"
+              data={[
+                ...defaultSelectedSalesman,
+                ...employees.filter(
+                  (item) =>
+                    !defaultSelectedSalesman
+                      .map(({ id }) => id)
+                      ?.includes(item.id)
+                ),
+              ]}
+              setData={setEmployees}
+              fetchData={getEmployees}
+              async
+              filter={{
+                limit: 20,
+                page: 1,
+                applyBusinessUnitTenantPersonFilter: 1,
+                businessUnitIds: id
+                  ? businessUnit === null
+                    ? [0]
+                    : [businessUnit]
+                  : BUSINESS_TKN_UNIT
+                  ? [BUSINESS_TKN_UNIT]
+                  : undefined,
+              }}
+              control={control}
+              required
+              valueName="lastName"
+              combineValue
+              name="saleManager"
+            />
+            <ProAsyncSelect
+              label="Müqavilə"
+              disabled={!getValues("counterparty")}
+              data={contracts}
+              setData={setContracts}
+              fetchData={getContracts}
+              valueName="contract_no"
+              valueNameTwo="serialNumber"
+              async
+              filter={{
+                limit: 20,
+                page: 1,
+                status: 1,
+                directions: [1],
+                businessUnitIds: id
+                  ? businessUnit === null
+                    ? [0]
+                    : [businessUnit]
+                  : BUSINESS_TKN_UNIT
+                  ? [BUSINESS_TKN_UNIT]
+                  : undefined,
+                contacts: [getValues("counterparty")],
+                endDateFrom: moment(getValues("operationDate"))?.format(
+                  "DD-MM-YYYY"
+                ),
+              }}
+              control={control}
+              name="contract"
+            />
+            <ProAsyncSelect
+              label="Agent"
+              data={agents}
+              setData={setAgents}
+              fetchData={getCounterparties}
+              async
+              filter={{
+                limit: 20,
+                page: 1,
+              }}
+              control={control}
+              name="agent"
+            />
+            <ProAsyncSelect
+              label="Anbar(Haraya)"
+              data={
+                id
+                  ? [
+                      {
+                        label: invoiceInfo.stockToName,
+                        value: invoiceInfo.stockId,
+                      },
+                      ...stock,
+                    ]
+                  : stock
+              }
+              async={false}
+              setData={setStock}
+              fetchData={getStock}
+              filter={{
+                limit: 1000,
+                applyBusinessUnitTenantPersonFilter: 1,
+                businessUnitIds: id
+                  ? businessUnit === null
+                    ? [0]
+                    : [businessUnit]
+                  : BUSINESS_TKN_UNIT
+                  ? [BUSINESS_TKN_UNIT]
+                  : undefined,
+                isActive: 1,
+              }}
+              control={control}
+              name="stockTo"
+              required
+            />
+            {statusData.some((item) => item.isStatusActive === true) ? (
+              <ProAsyncSelect
+                label="İcra statusu"
+                data={statusData[0]?.statuses?.map((item) => ({
+                  ...item,
+                  label: item.name,
+                  value: item.id,
+                }))}
+                setData={() => {}}
+                fetchData={() => {}}
+                async={false}
+                filter={{}}
+                required
+                control={control}
+                allowClear={false}
+                name="status"
+              />
+            ) : null}
+          </View>
+
+          <View style={{ display: "flex", flexDirection: "row" }}>
+            <ProButton
+              label="Təsdiq et"
+              type="primary"
+              onClick={handleSubmit(onSubmit)}
+              loading={loading}
+            />
+            <ProButton
+              label="İmtina"
+              type="transparent"
+              onClick={() => navigation.push("DashboardTabs")}
+            />
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 };
 
@@ -575,6 +666,7 @@ const SecondRoute = (props) => {
     businessUnit,
     id,
     invoiceInfo,
+    purchase_discount,
   } = props;
 
   const [data, setData] = useState(tableData);
@@ -590,6 +682,8 @@ const SecondRoute = (props) => {
   const [bronModal, setBronModal] = useState(false);
   const [productData, setProductData] = useState();
   const [catalogModalIsVisible, setCatalogModalIsVisible] = useState(false);
+  const [addProductModal, setAddProductModal] = useState(false);
+
   const invoiceTypesIds = [1, 10, 11, 7, 14];
   const [triggerExit, setTriggerExit] = useState({
     onOk: false,
@@ -817,39 +911,7 @@ const SecondRoute = (props) => {
       }
       return selectedProduct;
     });
-    const newtotalPrice = newSelectedProducts.reduce(
-      (totalPrice, { totalPricePerProduct }) =>
-        math.add(totalPrice, parseFloat(totalPricePerProduct || 0)),
-      0
-    );
-    const discountAmount = newSelectedProducts.reduce(
-      (
-        totalDiscountAmount,
-        { totalPricePerProduct, discountPercentage, totalEndPricePerProduct }
-      ) =>
-        math.add(
-          totalDiscountAmount,
-          parseFloat(discountPercentage ?? 0)
-            ? math.sub(
-                parseFloat(totalPricePerProduct || 0),
-                parseFloat(totalEndPricePerProduct || 0)
-              )
-            : 0
-        ),
-      0
-    );
-    const discountPercentage = math.mul(
-      math.div(parseFloat(discountAmount || 0), newtotalPrice || 1),
-      100
-    );
-    // setDiscount(
-    //   parseFloat(discountPercentage ?? 0)
-    //     ? {
-    //         percentage: toFixedNumber(parseFloat(discountPercentage || 0), 4),
-    //         amount: discountAmount,
-    //       }
-    //     : {}
-    // );
+
     setSelectedProducts(newSelectedProducts);
   };
 
@@ -968,6 +1030,12 @@ const SecondRoute = (props) => {
       );
     }
   }, [products]);
+
+  useEffect(() => {
+    if (useVat) {
+      handleUseVat(true);
+    }
+  }, [selectedProducts.length]);
 
   const handleTaxAmountPercentage = (productId, newPercentage) => {
     if (re_amount.test(newPercentage) && Number(newPercentage ?? 0) <= 100) {
@@ -1253,8 +1321,11 @@ const SecondRoute = (props) => {
     setDiscount(
       Number(value ?? 0) >= 0 && value !== undefined && !amount
         ? {
-            percentage: toFixedNumber(parseFloat(discountPercentage || 0), 4),
-            amount: parseFloat(toFixedNumber(discountAmount || 0, 2)),
+            percentage: `${toFixedNumber(
+              parseFloat(discountPercentage || 0),
+              4
+            )}`,
+            amount: `${parseFloat(toFixedNumber(discountAmount || 0, 2))}`,
           }
         : discount
     );
@@ -1266,8 +1337,62 @@ const SecondRoute = (props) => {
   };
 
   useEffect(() => {
-    if (vat.percentage && id && Number(invoiceInfo?.taxAmount ?? 0)) {
-      setUseVat(true);
+    if (!id) {
+      if (endPrice && Number(vat?.percentage ?? 0)) {
+        const totalTaxRoadPrice = reduce(
+          selectedProducts,
+          (acc, product) => acc + Number(product?.totalRoadTaxAmount ?? 0),
+          0
+        );
+
+        const AMOUNT = roundTo(
+          math.div(
+            math.mul(
+              Number(Number(vat.percentage ?? 0) || 0),
+              math.sub(Number(endPrice || 0), Number(totalTaxRoadPrice || 0))
+            ),
+            100
+          ),
+          2
+        );
+        if (useVat) {
+          setVat({
+            newPercentage: Number(vat.percentage ?? 0) || undefined,
+            newAmount: AMOUNT || undefined,
+          });
+          selectedProducts.forEach((product) => {
+            const newtaxAmount =
+              !product?.isVatFree && vat.percentage
+                ? math.div(
+                    math.mul(
+                      parseFloat(vat.percentage ?? 0) ?? 0,
+                      parseFloat(
+                        product?.discountAmount
+                          ? product?.discountedPrice
+                          : product.invoicePriceBack || 0
+                      ) || 0
+                    ) || 0,
+                    100
+                  )
+                : 0;
+            setTaxAmount(
+              product?.productUniqueId ?? product?.id,
+              Number(vat.percentage ?? 0),
+              Number(vat.percentage ?? 0)
+            );
+          });
+        }
+      }
+    }
+  }, [endPrice]);
+
+  useEffect(() => {
+    if (id) {
+      if (vat.percentage && Number(invoiceInfo?.taxAmount ?? 0)) {
+        setUseVat(true);
+      } else {
+        setUseVat(false);
+      }
     }
   }, [vat.percentage, invoiceInfo]);
 
@@ -1408,15 +1533,6 @@ const SecondRoute = (props) => {
         percentage: newVatPercentage,
         amount: newVatAmount,
       });
-
-      // setDiscount(
-      //   Number(value ?? 0) >= 0 && value !== undefined && !amount
-      //     ? {
-      //         percentage: toFixedNumber(parseFloat(discountPercentage || 0), 4),
-      //         amount: parseFloat(toFixedNumber(discountAmount || 0, 2)),
-      //       }
-      //     : discount
-      // );
     }
   }, [endPrice, invoiceInfo]);
 
@@ -1520,19 +1636,21 @@ const SecondRoute = (props) => {
                         {currentMeasurement?.unitOfMeasurementName?.toLowerCase()}
                       </Text>
                     }
-                  >
-                    <Text>
-                      {currentMeasurement?.unitOfMeasurementName
-                        ? (currentMeasurement?.unitOfMeasurementName?.length > 6
-                            ? `${currentMeasurement?.unitOfMeasurementName?.slice(
-                                0,
-                                6
-                              )}...`
-                            : currentMeasurement?.unitOfMeasurementName
-                          )?.toLowerCase()
-                        : ""}
-                    </Text>
-                  </ProTooltip>
+                    trigger={
+                      <Text>
+                        {currentMeasurement?.unitOfMeasurementName
+                          ? (currentMeasurement?.unitOfMeasurementName?.length >
+                            6
+                              ? `${currentMeasurement?.unitOfMeasurementName?.slice(
+                                  0,
+                                  6
+                                )}...`
+                              : currentMeasurement?.unitOfMeasurementName
+                            )?.toLowerCase()
+                          : ""}
+                      </Text>
+                    }
+                  />
                 </View>
               )}
             </View>,
@@ -1590,19 +1708,20 @@ const SecondRoute = (props) => {
                       ))}
                     </View>
                   }
-                >
-                  <View
-                    style={{
-                      backgroundColor: "#45a8e291",
-                      borderRadius: 5,
-                      width: 24,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text>{serialNumbers?.length}</Text>
-                  </View>
-                </ProTooltip>
+                  trigger={
+                    <View
+                      style={{
+                        backgroundColor: "#45a8e291",
+                        borderRadius: 5,
+                        width: 24,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text>{serialNumbers?.length}</Text>
+                    </View>
+                  }
+                />
               )}
             </View>,
             <View>
@@ -1906,9 +2025,15 @@ const SecondRoute = (props) => {
         );
         return {
           ...selectedProduct,
-          taxAmount: newPercentage,
+          taxAmount:
+            parseFloat(selectedProduct?.invoiceQuantity || 0) !== 0
+              ? newPercentage
+              : 0,
           taxAmountPercentage: parseFloat(taxAmountPercentage)?.toFixed(2),
-          originalTaxAmount: newPercentage,
+          originalTaxAmount:
+            parseFloat(selectedProduct?.invoiceQuantity || 0) !== 0
+              ? newPercentage
+              : 0,
           totalTaxAmount: parseFloat(totalTaxAmount),
           taxAmountWithPrice: parseFloat(taxAmountWithPrice),
           totalTaxAmountWithPrice: parseFloat(totalTaxAmountWithPrice),
@@ -1977,11 +2102,6 @@ const SecondRoute = (props) => {
         percentage: newVatPercentage,
         amount: newVatAmount,
       });
-
-      // setDiscount({
-      //   percentage: toFixedNumber(parseFloat(discountPercentage || 0), 4),
-      //   amount: parseFloat(toFixedNumber(discountAmount || 0, 2)),
-      // });
     }
     if (!checked) {
       const newSelectedProducts = selectedProducts?.map((selectedProduct) => {
@@ -2023,27 +2143,7 @@ const SecondRoute = (props) => {
           ),
         0
       );
-
-      const discountPercentage = math.mul(
-        math.div(
-          parseFloat(discountAmount || 0) || 0,
-          Number(
-            selectedProducts?.reduce(
-              (totalPrice, { totalPricePerProduct }) =>
-                math.add(totalPrice, Number(totalPricePerProduct || 0)),
-              0
-            ) || 0
-          ) || 1
-        ),
-        100
-      );
-
       setSelectedProducts(newSelectedProducts);
-      // setDiscount({
-      //   percentage: toFixedNumber(parseFloat(discountPercentage || 0), 4),
-      //   amount: parseFloat(toFixedNumber(discountAmount || 0, 2)),
-      // });
-
       setVat({
         percentage: undefined,
         amount: undefined,
@@ -2076,6 +2176,7 @@ const SecondRoute = (props) => {
           fetchProducts({
             filter: {
               withUnitOfMeasurements: 1,
+              withMinMaxPrice: 1,
               withRoadTaxes: 1,
               productCodeName: event,
               datetime: moment(getValues("operationDate"))?.format(
@@ -2115,6 +2216,16 @@ const SecondRoute = (props) => {
                               item?.coefficientRelativeToMain || 1
                             ) == 0,
                           id: product?.id,
+                          invoicePrice: math.mul(
+                            parseFloat(product.lastPrice ?? 0),
+                            parseFloat(item?.coefficientRelativeToMain || 1) ||
+                              1
+                          ),
+                          mainInvoicePrice: math.mul(
+                            parseFloat(product.lastPrice ?? 0),
+                            parseFloat(item?.coefficientRelativeToMain || 1) ||
+                              1
+                          ),
                           catalog: {
                             id: product?.catalogId,
                             isServiceType: product?.isServiceType,
@@ -2135,6 +2246,14 @@ const SecondRoute = (props) => {
                     name: product?.catalogName,
                     rootName: product?.parentCatalogName,
                   },
+                  invoicePrice: math.mul(
+                    parseFloat(product.lastPrice ?? 0),
+                    parseFloat(product?.coefficientRelativeToMain || 1) || 1
+                  ),
+                  mainInvoicePrice: math.mul(
+                    parseFloat(product.lastPrice ?? 0),
+                    parseFloat(product?.coefficientRelativeToMain || 1) || 1
+                  ),
                   product_code: product?.productCode,
                   unitOfMeasurementName: product?.unitOfMeasurementName,
                   unitOfMeasurementId: product?.unitOfMeasurementId,
@@ -2485,6 +2604,39 @@ const SecondRoute = (props) => {
 
   return (
     <View style={styles.container}>
+      {addProductModal && (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={addProductModal}
+          onRequestClose={() => {
+            setAddProductModal(false);
+          }}
+        >
+          <View style={styles.centeredView}>
+            <View style={styles.productModalView}>
+              <ProText variant="heading" style={{ color: "black" }}>
+                Məhsul əlavə et
+              </ProText>
+              <AddProduct
+                fromPurchase
+                route={{
+                  params: { id: false, invoiceInfo: {}, businessUnit: null },
+                }}
+                setSelectedPurchaseProducts={setSelectedProducts}
+                selectedPurchaseProducts={selectedProducts}
+                setAddProductModal={setAddProductModal}
+              />
+              <Pressable
+                style={[styles.button]}
+                onPress={() => setAddProductModal(false)}
+              >
+                <AntDesign name="close" size={14} color="black" />
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
       <AddFromCatalog
         getValues={getValues}
         type="purchase"
@@ -2522,6 +2674,7 @@ const SecondRoute = (props) => {
             flexDirection: "row",
             width: "100%",
             alignItems: "center",
+            gap: 5,
           }}
         >
           <View style={{ width: "83%" }}>
@@ -2561,14 +2714,14 @@ const SecondRoute = (props) => {
               handleSelectValue={handleSelectValue}
             />
           </View>
-          {/* <ProButton
-            label={<Feather name="refresh-cw" size={14} />}
-            type="transparent"
+          <ProButton
+            label={<Feather name="plus" size={14} />}
+            type="primary"
+            defaultStyle={{ borderRadius: 8, marginTop: 8 }}
             onClick={() => {
-              setSerialNumber(!serialNumber);
-              setProductsByName([]);
+              setAddProductModal(true);
             }}
-          /> */}
+          />
         </View>
       </View>
       <View style={{ display: "flex", flexDirection: "row", gap: 10 }}>
@@ -2629,58 +2782,79 @@ const SecondRoute = (props) => {
             {currencies.find(({ id }) => id === getValues("currency"))?.code}
           </Text>
         </View>
-        <View style={{ ...styles.footer, alignItems: "center" }}>
-          <View>
-            <Text>Endirim:</Text>
-          </View>
+        {purchase_discount?.permission !== 0 && (
+          <View style={{ ...styles.footer, alignItems: "center" }}>
+            <View>
+              <Text>Endirim:</Text>
+            </View>
 
-          <View style={{ display: "flex", flexDirection: "row" }}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                value={discount?.percentage}
-                keyboardType="numeric"
-                underlineColorAndroid="transparent"
-                onChangeText={(event) => {
-                  handleDiscountChange(event, "percentage", null, true);
-                }}
-                style={{
-                  width: 90,
-                  padding: 5,
-                }}
-              />
-              <Text style={styles.prefix}>%</Text>
-            </View>
-            <View style={{ ...styles.inputContainer, marginRight: 0 }}>
-              <TextInput
-                value={discount?.amount}
-                keyboardType="numeric"
-                underlineColorAndroid="transparent"
-                onChangeText={(event) => {
-                  handleDiscountChange(event, "amount");
-                }}
-                style={{
-                  width: 80,
-                  padding: 5,
-                }}
-              />
-              <Text style={styles.prefix}>
-                {
-                  currencies?.find(({ id }) => id === getValues("currency"))
-                    ?.code
+            <View style={{ display: "flex", flexDirection: "row" }}>
+              <View
+                style={
+                  purchase_discount?.permission !== 1
+                    ? [styles.inputContainer]
+                    : [styles.inputContainer, styles.disabledInputContainer]
                 }
-              </Text>
+              >
+                <TextInput
+                  value={discount?.percentage}
+                  keyboardType="numeric"
+                  underlineColorAndroid="transparent"
+                  onChangeText={(event) => {
+                    handleDiscountChange(event, "percentage", null, true);
+                  }}
+                  editable={purchase_discount?.permission !== 1}
+                  style={{
+                    width: 90,
+                    padding: 5,
+                  }}
+                />
+                <Text style={styles.prefix}>%</Text>
+              </View>
+              <View
+                style={
+                  purchase_discount?.permission !== 1
+                    ? [{ ...styles.inputContainer, marginRight: 0 }]
+                    : [
+                        { ...styles.inputContainer, marginRight: 0 },
+                        styles.disabledInputContainer,
+                      ]
+                }
+              >
+                <TextInput
+                  value={discount?.amount}
+                  keyboardType="numeric"
+                  underlineColorAndroid="transparent"
+                  onChangeText={(event) => {
+                    handleDiscountChange(event, "amount");
+                  }}
+                  editable={purchase_discount?.permission !== 1}
+                  style={{
+                    width: 80,
+                    padding: 5,
+                  }}
+                />
+                <Text style={styles.prefix}>
+                  {
+                    currencies?.find(({ id }) => id === getValues("currency"))
+                      ?.code
+                  }
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-        <View style={styles.footer}>
-          <Text>Son qiymət:</Text>
-          <Text>
-            {formatNumberToLocale(
-              defaultNumberFormat(endPrice?.toFixed(2) ?? 0)
-            )}{" "}
-            {currencies?.find(({ id }) => id === getValues("currency"))?.code}
-          </Text>
-        </View>
+        )}
+        {purchase_discount?.permission !== 0 && (
+          <View style={styles.footer}>
+            <Text>Son qiymət:</Text>
+            <Text>
+              {formatNumberToLocale(
+                defaultNumberFormat(endPrice?.toFixed(2) ?? 0)
+              )}{" "}
+              {currencies?.find(({ id }) => id === getValues("currency"))?.code}
+            </Text>
+          </View>
+        )}
         <View style={{ ...styles.footer, alignItems: "center" }}>
           <View style={styles.checkboxContainer}>
             <CheckBox
@@ -2782,7 +2956,7 @@ const ThirdRoute = (props) => {
     "Hesab növü",
     "Hesab",
     "Ödəniş məbləği",
-    `Ödəniş məbləği (${currencies.find(({ isMain }) => isMain)?.code})`,
+    `Silinəcək məbləğ (${currencies.find(({ isMain }) => isMain)?.code})`,
     "Sil",
   ];
 
@@ -2847,7 +3021,16 @@ const ThirdRoute = (props) => {
     const newExpenses = (type === "vat" ? vatPayments : payments).map(
       (selectedExpenseItem, index) => {
         if (index === expenseItemId) {
-          if (typeOperation === "paymentAmount") {
+          if (typeOperation === "amountToDelete") {
+            return {
+              ...selectedExpenseItem,
+              amountToDelete: newPrice,
+              rate: math.div(
+                Number(newPrice),
+                selectedExpenseItem?.paymentAmount
+              ),
+            };
+          } else if (typeOperation === "paymentAmount") {
             if (
               (re_paymentAmount.test(newPrice) &&
                 Number(newPrice) <= Number(limit)) ||
@@ -2859,6 +3042,9 @@ const ThirdRoute = (props) => {
               };
             }
           } else {
+            const currentRate = currencies?.find(
+              ({ id }) => id === newPrice
+            )?.rate;
             return {
               ...selectedExpenseItem,
               [typeOperation]: newPrice,
@@ -2868,6 +3054,43 @@ const ThirdRoute = (props) => {
                   : typeOperation === "cashboxId"
                   ? newPrice
                   : selectedExpenseItem?.cashboxId,
+              amountToDelete:
+                typeOperation === "currency"
+                  ? undefined
+                  : selectedExpenseItem?.amountToDelete,
+              paymentAmount:
+                typeOperation === "currency"
+                  ? `${customRound(
+                      Number(
+                        math.div(
+                          Number(
+                            type === "vat"
+                              ? defaultNumberFormat(
+                                  math.sub(
+                                    customRound(vat.amount || 0, 1, 2),
+                                    Number(invoiceInfo?.paidTaxAmount || 0)
+                                  )
+                                )
+                              : defaultNumberFormat(
+                                  customRound(
+                                    math.sub(
+                                      Number(endPrice),
+                                      Number(invoiceInfo?.paidAmount || 0)
+                                    ),
+                                    1,
+                                    2
+                                  )
+                                ) || 0
+                          ),
+                          Number(currentRate || 1)
+                        )
+                      )
+                    )}`
+                  : selectedExpenseItem?.paymentAmount,
+              rate:
+                typeOperation === "currency"
+                  ? Number(currentRate || 1)
+                  : selectedExpenseItem?.rate,
             };
           }
         }
@@ -3090,7 +3313,17 @@ const ThirdRoute = (props) => {
   useEffect(() => {
     setPaymentTableData(
       payments.map(
-        ({ currency, cashBoxType, cashboxId, paymentAmount }, index) => {
+        (
+          {
+            currency,
+            cashBoxType,
+            cashboxId,
+            paymentAmount,
+            amountToDelete,
+            rate,
+          },
+          index
+        ) => {
           return [
             index + 1,
             <View>
@@ -3175,9 +3408,8 @@ const ThirdRoute = (props) => {
                         {getCashboxDetail(cashboxId)}
                       </Text>
                     }
-                  >
-                    <FontAwesome name="info-circle" size={18} />
-                  </ProTooltip>
+                    trigger={<FontAwesome name="info-circle" size={18} />}
+                  />
                 ) : (
                   <FontAwesome
                     disabled={!cashboxId}
@@ -3216,33 +3448,56 @@ const ThirdRoute = (props) => {
               />
             </View>,
             <View>
-              <Text style={{ textAlign: "center" }}>
-                {formatNumberToLocale(
-                  defaultNumberFormat(
-                    math.mul(
-                      Number(
-                        expenseRates[
-                          [
-                            ...new Set(
-                              payments
-                                .filter(
-                                  ({ currency }) => currency !== undefined
-                                )
-                                .map(({ currency }) => currency)
-                            ),
-                          ].indexOf(payments[index].currency)
-                        ]?.rate || 1
-                      ),
-                      Number(paymentAmount || 0)
-                    ) || 0
-                  )
-                )}{" "}
-                {
-                  currencies?.find(
-                    (currency) => currency.id === getValues("currency")
-                  )?.code
+              <TextInput
+                value={
+                  amountToDelete
+                    ? amountToDelete
+                    : `${
+                        math.mul(
+                          Number(
+                            rate && Number(rate) > 0
+                              ? Number(rate)
+                              : expenseRates[
+                                  [
+                                    ...new Set(
+                                      payments
+                                        .filter(
+                                          ({ currency }) =>
+                                            currency !== undefined
+                                        )
+                                        .map(({ currency }) => currency)
+                                    ),
+                                  ].indexOf(currency)
+                                ]?.rate || 1
+                          ),
+                          Number(paymentAmount || 0)
+                        ) || 0
+                      }`
                 }
-              </Text>
+                keyboardType="numeric"
+                onChangeText={(event) => {
+                  handlePriceChange(
+                    index === 0 ? 0 : index || payments[index].id,
+                    event,
+                    "amountToDelete",
+                    !Object.values(cashbox ?? {})?.[0] === false
+                      ? Number(
+                          cashbox[cashboxId]?.find(
+                            ({ tenantCurrencyId }) =>
+                              tenantCurrencyId === currency
+                          )?.balance || 0
+                        )
+                      : 10000000
+                  );
+                }}
+                style={{
+                  margin: 10,
+                  padding: 5,
+                  borderWidth: 1,
+                  borderRadius: 5,
+                  borderColor: "#D0DBEA",
+                }}
+              />
             </View>,
             <ProButton
               label={<FontAwesome name="trash" size={18} color="red" />}
@@ -3260,7 +3515,17 @@ const ThirdRoute = (props) => {
   useEffect(() => {
     setVatPaymentTableData(
       vatPayments.map(
-        ({ currency, cashBoxType, cashboxId, paymentAmount }, index) => {
+        (
+          {
+            currency,
+            cashBoxType,
+            cashboxId,
+            paymentAmount,
+            amountToDelete,
+            rate,
+          },
+          index
+        ) => {
           return [
             index + 1,
             <View>
@@ -3345,9 +3610,8 @@ const ThirdRoute = (props) => {
                         {getCashboxDetail(cashboxId)}
                       </Text>
                     }
-                  >
-                    <FontAwesome name="info-circle" size={18} />
-                  </ProTooltip>
+                    trigger={<FontAwesome name="info-circle" size={18} />}
+                  />
                 ) : (
                   <FontAwesome
                     disabled={!cashboxId}
@@ -3380,33 +3644,57 @@ const ThirdRoute = (props) => {
               />
             </View>,
             <View>
-              <Text>
-                {formatNumberToLocale(
-                  defaultNumberFormat(
-                    math.mul(
-                      Number(
-                        vatExpenseRates[
-                          [
-                            ...new Set(
-                              vatPayments
-                                .filter(
-                                  ({ currency }) => currency !== undefined
-                                )
-                                .map(({ currency }) => currency)
-                            ),
-                          ].indexOf(vatPayments[index].currency)
-                        ]?.rate || 1
-                      ),
-                      Number(paymentAmount || 0)
-                    ) || 0
-                  )
-                )}{" "}
-                {
-                  currencies?.find(
-                    (currency) => currency.id === getValues("currency")
-                  )?.code
+              <TextInput
+                value={
+                  amountToDelete
+                    ? amountToDelete
+                    : `${
+                        math.mul(
+                          Number(
+                            rate && Number(rate) > 0
+                              ? Number(rate)
+                              : vatExpenseRates[
+                                  [
+                                    ...new Set(
+                                      vatPayments
+                                        .filter(
+                                          ({ currency }) =>
+                                            currency !== undefined
+                                        )
+                                        .map(({ currency }) => currency)
+                                    ),
+                                  ].indexOf(currency)
+                                ]?.rate || 1
+                          ),
+                          Number(paymentAmount || 0)
+                        ) || 0
+                      }`
                 }
-              </Text>
+                keyboardType="numeric"
+                onChangeText={(event) => {
+                  handlePriceChange(
+                    index === 0 ? 0 : index || vatPayments[index].id,
+                    event,
+                    "amountToDelete",
+                    !Object.values(cashbox ?? {})?.[0] === false
+                      ? Number(
+                          cashbox[cashboxId]?.find(
+                            ({ tenantCurrencyId }) =>
+                              tenantCurrencyId === currency
+                          )?.balance || 0
+                        )
+                      : 10000000,
+                    "vat"
+                  );
+                }}
+                style={{
+                  margin: 10,
+                  padding: 5,
+                  borderWidth: 1,
+                  borderRadius: 5,
+                  borderColor: "#D0DBEA",
+                }}
+              />
             </View>,
             <ProButton
               label={<FontAwesome name="trash" size={18} color="red" />}
@@ -4155,7 +4443,7 @@ const Purchase = ({ navigation, route }) => {
   const [expenseRates, setExpenseRates] = useState([]);
   const [vatExpenseRates, setVatExpenseRates] = useState([]);
   const [errorIndex, setErrorIndex] = useState(undefined);
-  const [useVat, setUseVat] = useState(false);
+  const [useVat, setUseVat] = useState(true);
   const [loading, setLoading] = useState(false);
   const [vatSettingState, setVatSettingsState] = useState(null);
   const [statusData, setStatusData] = useState([]);
@@ -4170,13 +4458,16 @@ const Purchase = ({ navigation, route }) => {
     percentage: undefined,
     amount: undefined,
   });
-  const [routes] = React.useState([
+  const [routes, setRoutes] = useState([
     { key: "first", title: "Ümumi məlumat" },
     { key: "second", title: "Qaimə" },
     { key: "third", title: "Ödəniş" },
   ]);
 
-  const { profile, BUSINESS_TKN_UNIT } = useContext(TenantContext);
+  const { profile, BUSINESS_TKN_UNIT, permissionsByKeyValue } =
+    useContext(TenantContext);
+
+  const { purchase_discount } = permissionsByKeyValue;
 
   const updateEditInvoice = (selectedContract, isDraft) => {
     const {
@@ -4512,10 +4803,8 @@ const Purchase = ({ navigation, route }) => {
           )
         );
         setDiscount({
-          percentage: discountAmount
-            ? defaultNumberFormat(discountPercentage)
-            : null,
-          amount: discountAmount || undefined,
+          percentage: discountAmount ? `${discountPercentage}` : null,
+          amount: `${discountAmount}` || undefined,
         });
         // setVat({
         //   amount: roundTo(Number(tax), 2) || undefined,
@@ -4751,11 +5040,11 @@ const Purchase = ({ navigation, route }) => {
         )
       );
       setDiscount({
-        percentage: roundTo(
+        percentage: `${roundTo(
           math.div(math.mul(Number(discountAmount) || 0, 100), amount),
           4
-        ),
-        amount: discountAmount || undefined,
+        )}`,
+        amount: `${discountAmount}` || undefined,
       });
       // setVat({
       //   amount: roundTo(Number(tax), 2) || undefined,
@@ -4773,6 +5062,19 @@ const Purchase = ({ navigation, route }) => {
     setValue("agent", agentId || undefined);
     setValue("stockTo", stockToId || stockFromId || undefined);
   };
+  useEffect(() => {
+    if (invoiceInfo) {
+      if (
+        Number(endPrice) === Number(invoiceInfo?.paidAmount) &&
+        Number(vat.amount) === Number(invoiceInfo?.paidTaxAmount)
+      ) {
+        setRoutes([
+          { key: "first", title: "Ümumi məlumat" },
+          { key: "second", title: "Qaimə" },
+        ]);
+      }
+    }
+  }, [invoiceInfo, endPrice, vat]);
 
   useEffect(() => {
     if (invoiceInfo) {
@@ -4918,17 +5220,22 @@ const Purchase = ({ navigation, route }) => {
       cashboxes_ul: payments?.map((item) => item.cashboxId) || [
         invoicePaymentAccount,
       ],
-      // rates_ul: payments?.map((item) =>
-      //   item.rate && Number(item.rate) > 0
-      //     ? Number(item.rate)
-      //     : Number(
-      //         expenseRates[
-      //           [
-      //             ...new Set(payments.map(({ currency }) => Number(currency))),
-      //           ].indexOf(item.currency)
-      //         ]?.rate || 1
-      //       )
-      // ),
+      invoiceCurrencyAmounts_ul: payments?.map((item) =>
+        math.mul(
+          item.rate && Number(item.rate) > 0
+            ? Number(item.rate)
+            : Number(
+                expenseRates[
+                  [
+                    ...new Set(
+                      payments.map(({ currency }) => Number(currency))
+                    ),
+                  ].indexOf(item.currency)
+                ]?.rate || 1
+              ),
+          item.paymentAmount
+        )
+      ),
       isTax: false,
     };
     createOperationInvoice(data).then((res) => {
@@ -4957,19 +5264,22 @@ const Purchase = ({ navigation, route }) => {
       cashboxes_ul: vatPayments?.map((item) => item.cashboxId) || [
         vatPaymentAccount,
       ],
-      // rates_ul: vatPayments?.map((item) =>
-      //   item.rate && Number(item.rate) > 0
-      //     ? Number(item.rate)
-      //     : Number(
-      //         vatExpenseRates[
-      //           [
-      //             ...new Set(
-      //               vatPayments.map(({ currency }) => Number(currency))
-      //             ),
-      //           ].indexOf(item.currency)
-      //         ]?.rate || 1
-      //       )
-      // ),
+      invoiceCurrencyAmounts_ul: vatPayments?.map((item) =>
+        math.mul(
+          item.rate && Number(item.rate) > 0
+            ? Number(item.rate)
+            : Number(
+                vatExpenseRates[
+                  [
+                    ...new Set(
+                      vatPayments.map(({ currency }) => Number(currency))
+                    ),
+                  ].indexOf(item.currency)
+                ]?.rate || 1
+              ),
+          item.paymentAmount
+        )
+      ),
       isTax: true,
     };
     createOperationInvoice(data).then((res) => {
@@ -5261,9 +5571,9 @@ const Purchase = ({ navigation, route }) => {
       })
         .then((res) => {
           if (payments.length > 0 && isSelected) {
-            handleInvoicePayment(operationDate, Number(res?.id));
+            handleInvoicePayment(operationDate, Number(id));
           } else if (vatPayments.length > 0 && isVatSelected) {
-            handleVatPayment(operationDate, Number(res?.id));
+            handleVatPayment(operationDate, Number(id));
           } else {
             Toast.show({
               type: "success",
@@ -5542,6 +5852,7 @@ const Purchase = ({ navigation, route }) => {
             businessUnit={businessUnit}
             id={id}
             invoiceInfo={invoiceInfo}
+            purchase_discount={purchase_discount}
           />
         );
       case "third":
@@ -5668,16 +5979,40 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  productModalView: {
+    width: "90%",
+    height: "90%",
+    marginTop: 20,
+    marginBottom: 20,
+    borderRadius: 20,
+    backgroundColor: "white",
+    padding: 35,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
   button: {
+    position: "absolute",
     borderRadius: 20,
     padding: 10,
-    elevation: 2,
+    right: 0,
   },
   buttonOpen: {
     backgroundColor: "#F194FF",
   },
   buttonClose: {
     backgroundColor: "#2196F3",
+  },
+  buttonModal: {
+    position: "absolute",
+    borderRadius: 20,
+    padding: 10,
+    right: 0,
   },
   footer: {
     display: "flex",
@@ -5694,6 +6029,9 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     marginHorizontal: 5,
     borderRadius: 10,
+  },
+  disabledInputContainer: {
+    backgroundColor: "#ececec",
   },
   prefix: {
     paddingHorizontal: 5,

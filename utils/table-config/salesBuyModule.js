@@ -3094,3 +3094,56 @@ export const SALES_TEMPLATE_TABLE_SETTING_DATA = [
     fixed: false,
   },
 ];
+
+
+export const ProductSelectSetting_Table_Data = [
+  {
+      name: 'Kataloq',
+      dataIndex: 'parentCatalogName',
+      standart: true,
+      visible: true,
+      fixed: false,
+  },
+  {
+      name: 'Alt Kataloq',
+      dataIndex: 'catalogName',
+      standart: true,
+      visible: true,
+      fixed: false,
+  },
+  {
+      name: 'Məhsul adı',
+      dataIndex: 'name',
+      standart: true,
+      visible: true,
+      fixed: true,
+  },
+  {
+      name: 'Ölçü vahidi',
+      dataIndex: 'unitOfMeasurementName',
+      standart: true,
+      visible: true,
+      fixed: false,
+  },
+  {
+      name: 'Qiymət',
+      dataIndex: 'pricePerUnit',
+      standart: true,
+      visible: true,
+      fixed: false,
+  },
+  {
+      name: 'Anbardakı miqdar',
+      dataIndex: 'quantity',
+      standart: true,
+      visible: true,
+      fixed: false,
+  },
+  {
+      name: 'Say',
+      dataIndex: 'Quantity',
+      standart: true,
+      visible: true,
+      fixed: true,
+  },
+];

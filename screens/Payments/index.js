@@ -50,7 +50,7 @@ import AdvancePayment from "../Invoice/AdvancePayment";
 
 const math = require("exact-math");
 
-const Peyments = ({ navigation, route }) => {
+const Payments = ({ navigation, route }) => {
   const {
     control,
     handleSubmit,
@@ -1122,4 +1122,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Peyments;
+export default Payments;

@@ -10,6 +10,7 @@ export const TenantContextProvider = (props) => {
   const [permissionsByKeyValue, setPermissionsByKeyValue] = useState({});
   const [BUSINESS_TKN_UNIT, setBusinessUnitId] = useState(undefined);
   const [tableSettings, setTableSettings] = useState({});
+  const [userSettings, setUserSettings] = useState({});
   const [tenantPersonRoles, setTenantPersonRoles] = useState({
     1: [], // Role warehouseman
     2: [], // Role forwarder
@@ -34,6 +35,8 @@ export const TenantContextProvider = (props) => {
         setPermissionsByKeyValue,
         tableSettings,
         setTableSettings,
+        userSettings,
+        setUserSettings
       }}
     >
       {props.children}

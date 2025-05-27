@@ -15,7 +15,8 @@ const ProDateTimePicker = ({
   name,
   required = false,
   label = "Əməliyyat tarixi",
-  editDate = undefined
+  editDate = undefined,
+  disabled = false,
 }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [time, setTime] = useState(new Date());
@@ -52,7 +53,10 @@ const ProDateTimePicker = ({
           </View>
           <TouchableOpacity
             onPress={showDatePicker}
-            style={styles.inputContainerStyle}
+            style={
+              (disabled ? { ...styles.inputDisabledStyle, ...styles.inputContainerStyle  } : styles.inputContainerStyle)
+            }
+            disabled={disabled}
           >
             {selectedDate ? (
               <Text style={styles.textStyle}>
@@ -122,6 +126,9 @@ const styles = StyleSheet.create({
     borderColor: "#8d908e",
     borderRadius: 8,
     height: 50,
+  },
+  inputDisabledStyle: {
+    backgroundColor: '#eee'
   },
   placeholderStyle: {
     fontSize: 16,

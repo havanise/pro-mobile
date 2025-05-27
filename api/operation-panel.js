@@ -17,6 +17,12 @@ export const createSettings = async (module) => {
   });
 };
 
+export const fetchAllUserSettings = async () => {
+  return client(`/system/tenant-person-setting`, {
+    method: "GET",
+  });
+};
+
 export const getBusinessUnit = () => {
   return client(`/business-unit/business-units`, {
     method: "GET",

@@ -25,7 +25,7 @@ import {
   SceneMap,
   SceneRendererProps,
 } from "react-native-tab-view";
-import { debounce, values, find, isNil, filter, trim } from "lodash";
+import { debounce, values, find, isNil, filter, trim, reduce } from "lodash";
 import { useApi } from "../../hooks";
 import {
   MaterialIcons,
@@ -86,6 +86,9 @@ import { clearBusinessUnit } from "../../utils/storage";
 import AddFromCatalog from "../../components/AddFromCatalog";
 import InvoiceModalWithSN from "../../components/InvoiceModalWithSN";
 import InvoiceModalWithoutSN from "../../components/InvoiceModalWithoutSN";
+import { position } from "@shopify/restyle";
+import Contacts from "../Contacts";
+import { regex_amount } from "../../utils/constants";
 
 const math = require("exact-math");
 const BigNumber = require("bignumber.js");
@@ -129,6 +132,9 @@ const FirstRoute = (props) => {
     businessUnit,
     invoiceInfo,
     editDate,
+    settingsData,
+    setSettingsData,
+    setCashBoxIsDisabled,
   } = props;
 
   const [counterparties, setCounterparties] = useState([]);
@@ -136,7 +142,6 @@ const FirstRoute = (props) => {
   const [employees, setEmployees] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [stock, setStock] = useState([]);
-  const [settingsData, setSettingsData] = useState([]);
   const [settingsDataLoading, setSettingsDataLoading] = useState(false);
   const [dateIsDisabled, setDateIsDisabled] = useState(false);
   const [contractIsDisabled, setContractIsDisabled] = useState(false);
@@ -144,7 +149,10 @@ const FirstRoute = (props) => {
   const [currenciesIsDisabled, setCurrenciesIsDisabled] = useState(false);
   const [managerIsDisabled, setManagerIsDisabled] = useState(false);
   const [stockIsDisabled, setStockIsDisabled] = useState(false);
+  const [statusIsDisabled, setStatusIsDisabled] = useState(false);
   const [defaultSelectedSalesman, setDefaultSelectedSalesman] = useState([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [addedCounterparty, setAddedCounterparty] = useState([]);
 
   const { isLoading, run } = useApi({
     deferFn: getCurrencies,
@@ -368,14 +376,18 @@ const FirstRoute = (props) => {
       const disableFieldUpdates = {};
       const fieldValues = {};
       let dateIsDisabled = false;
+      let cashBoxIsDisabled = false;
       settingsData.forEach((field) => {
         Object.entries(field).forEach(([key, value]) => {
           if (key === "dateIsDisabled") {
             dateIsDisabled = value;
+          } else if (key === "cashbox") {
+            cashBoxIsDisabled = value;
           }
         });
       });
       setDateIsDisabled(dateIsDisabled);
+      setCashBoxIsDisabled(cashBoxIsDisabled);
       setValue("currency", currencies[0]?.id);
       setValue("stockFrom", stock[0]?.id ?? undefined);
     }
@@ -384,7 +396,8 @@ const FirstRoute = (props) => {
   useEffect(() => {
     if (
       settingsData?.find((item) => item.client !== undefined)?.client ===
-      counterparties[0]?.id
+        counterparties[0]?.id &&
+      !id
     ) {
       setCounterpartyIsDisabled(
         settingsData?.find((item) => item.client !== undefined)?.isDisable
@@ -423,6 +436,15 @@ const FirstRoute = (props) => {
         settingsData?.find((item) => item.stockFrom !== undefined)?.isDisable
       );
     }
+
+    if (
+      !settingsDataLoading &&
+      settingsData?.find((item) => item.status !== undefined)?.status
+    ) {
+      setStatusIsDisabled(
+        settingsData?.find((item) => item.status !== undefined)?.isDisable
+      );
+    }
   }, [settingsData, settingsDataLoading]);
 
   useEffect(() => {
@@ -437,20 +459,6 @@ const FirstRoute = (props) => {
             ? [BUSINESS_TKN_UNIT]
             : [0],
       });
-      // fetchBusinessSettings({
-      //   id: profile.id,
-      //   businesUnitId:
-      //     profile?.businessUnits?.length === 1
-      //       ? [profile?.businessUnits?.[0]?.id]
-      //       : BUSINESS_TKN_UNIT
-      //       ? [BUSINESS_TKN_UNIT]
-      //       : [0],
-      //   filters: {},
-      //   onSuccessCallback: ({ data }) => {
-      //     setSettingsData(data?.settings);
-      //     setSettingsDataLoading(false);
-      //   },
-      // });
     } else {
       setSettingsData([]);
     }
@@ -481,232 +489,321 @@ const FirstRoute = (props) => {
     }
   }, [getValues("counterparty"), settingsDataLoading]);
 
-  return (
-    <ScrollView>
-      <View
-        style={{
-          paddingTop: 40,
-          paddingLeft: 10,
-          paddingRight: 10,
-          paddingBottom: 40,
-        }}
-      >
-        {id && (
-          <ProText variant="heading" style={{ color: "black" }}>
-            Sənəd: {invoiceInfo.invoiceNumber}
-          </ProText>
-        )}
-        <ProText variant="heading" style={{ color: "black" }}>
-          {id ? "Düzəliş et" : "Yeni əməliyyat"}
-        </ProText>
-        <Text style={{ fontSize: 18 }}>Satış</Text>
+  const addContactToSelect = (res) => {
+    const filters = {
+      limit: 10,
+      page: 1,
+      ids: [res.id],
+      applyBusinessUnitTenantPersonFilter: 1,
+      businessUnitIds:
+        id && invoiceInfo
+          ? invoiceInfo?.businessUnitId === null
+            ? [0]
+            : [invoiceInfo?.businessUnitId]
+          : BUSINESS_TKN_UNIT
+          ? [BUSINESS_TKN_UNIT]
+          : undefined,
+    };
 
-        <View
-          style={{
-            marginTop: 20,
-            marginBottom: 20,
-            padding: 10,
-            borderRadius: 4,
-            backgroundColor: "#fff",
-            display: "flex",
-            gap: 10,
+    getCounterparties({ filters }).then((dat) => {
+      setAddedCounterparty(
+        dat.map((item) => ({ ...item, label: item.name, value: item.id }))
+      );
+      setValue("counterparty", res.id);
+    });
+  };
+
+  return (
+    <>
+      {modalVisible && (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => {
+            setModalVisible(false);
           }}
         >
-          <ProDateTimePicker
-            name="operationDate"
-            control={control}
-            setValue={setValue}
-            editDate={editDate}
-          />
-          <ProAsyncSelect
-            label="Valyuta"
-            disabled={currenciesIsDisabled}
-            data={currencies}
-            setData={setCurrencies}
-            fetchData={getCurrencies}
-            async={false}
-            filter={{
-              limit: 1000,
-              withRatesOnly: 1,
-              applyBusinessUnitTenantPersonFilter: 1,
-              businessUnitIds: id
-                ? businessUnit === null
-                  ? [0]
-                  : [businessUnit]
-                : BUSINESS_TKN_UNIT
-                ? [BUSINESS_TKN_UNIT]
-                : undefined,
+          <View style={styles.centeredView}>
+            <View style={styles.modalView}>
+              <Contacts
+                fromOperation={"sale"}
+                closeModal={() => {
+                  setModalVisible(false);
+                }}
+                addContactToSelect={addContactToSelect}
+              />
+              <Pressable
+                style={[styles.buttonModal]}
+                onPress={() => setModalVisible(false)}
+              >
+                <AntDesign name="close" size={18} color="black" />
+              </Pressable>
+            </View>
+          </View>
+
+          <Toast />
+        </Modal>
+      )}
+      <ScrollView>
+        <View
+          style={{
+            paddingTop: 40,
+            paddingLeft: 10,
+            paddingRight: 10,
+            paddingBottom: 40,
+          }}
+        >
+          {id && (
+            <ProText variant="heading" style={{ color: "black" }}>
+              Sənəd: {invoiceInfo.invoiceNumber}
+            </ProText>
+          )}
+          <ProText variant="heading" style={{ color: "black" }}>
+            {id ? "Düzəliş et" : "Yeni əməliyyat"}
+          </ProText>
+          <Text style={{ fontSize: 18 }}>Satış</Text>
+
+          <View
+            style={{
+              marginTop: 20,
+              marginBottom: 20,
+              padding: 10,
+              borderRadius: 4,
+              backgroundColor: "#fff",
+              display: "flex",
+              gap: 10,
             }}
-            required
-            control={control}
-            allowClear={false}
-            name="currency"
-          />
-          <ProAsyncSelect
-            label="Qarşı tərəf"
-            disabled={counterpartyIsDisabled}
-            data={
-              id
-                ? [
-                    {
-                      label: invoiceInfo.counterparty,
-                      value: invoiceInfo.supplierId || invoiceInfo.clientId,
-                      id: invoiceInfo.supplierId || invoiceInfo.clientId,
-                    },
-                    ...counterparties,
-                  ]
-                : counterparties
-            }
-            setData={setCounterparties}
-            fetchData={getCounterparties}
-            async
-            filter={{
-              limit: 20,
-              page: 1,
-              categories: [1],
-              applyBusinessUnitTenantPersonFilter: 1,
-              businessUnitIds: id
-                ? businessUnit === null
-                  ? [0]
-                  : [businessUnit]
-                : BUSINESS_TKN_UNIT
-                ? [BUSINESS_TKN_UNIT]
-                : undefined,
-            }}
-            control={control}
-            required
-            name="counterparty"
-          />
-          <ProAsyncSelect
-            label="Menecer"
-            disabled={managerIsDisabled}
-            data={[
-              ...defaultSelectedSalesman,
-              ...employees.filter(
-                (item) =>
-                  !defaultSelectedSalesman
-                    .map(({ id }) => id)
-                    ?.includes(item.id)
-              ),
-            ]}
-            setData={setEmployees}
-            fetchData={getEmployees}
-            async
-            filter={{
-              limit: 20,
-              page: 1,
-              applyBusinessUnitTenantPersonFilter: 1,
-              businessUnitIds: id
-                ? businessUnit === null
-                  ? [0]
-                  : [businessUnit]
-                : BUSINESS_TKN_UNIT
-                ? [BUSINESS_TKN_UNIT]
-                : undefined,
-            }}
-            control={control}
-            combineValue
-            valueName="lastName"
-            required
-            name="saleManager"
-          />
-          <ProAsyncSelect
-            label="Müqavilə"
-            disabled={contractIsDisabled || !getValues("counterparty")}
-            data={contracts}
-            setData={setContracts}
-            fetchData={getContracts}
-            valueName="contract_no"
-            valueNameTwo="serialNumber"
-            async
-            filter={{
-              limit: 20,
-              page: 1,
-              status: 1,
-              directions: [2],
-              contacts: [getValues("counterparty")],
-              businessUnitIds: id
-                ? businessUnit === null
-                  ? [0]
-                  : [businessUnit]
-                : BUSINESS_TKN_UNIT
-                ? [BUSINESS_TKN_UNIT]
-                : undefined,
-              endDateFrom: moment(getValues("operationDate"))?.format(
-                "DD-MM-YYYY"
-              ),
-            }}
-            control={control}
-            name="contract"
-          />
-          <ProAsyncSelect
-            label="Agent"
-            data={agents}
-            setData={setAgents}
-            fetchData={getCounterparties}
-            async
-            filter={{
-              limit: 20,
-              page: 1,
-            }}
-            control={control}
-            name="agent"
-          />
-          <ProAsyncSelect
-            label="Anbar(Haradan)"
-            disabled={stockIsDisabled}
-            data={stock}
-            async={false}
-            setData={setStock}
-            fetchData={getStock}
-            filter={{
-              limit: 1000,
-              applyBusinessUnitTenantPersonFilter: 1,
-              businessUnitIds: id
-                ? businessUnit === null
-                  ? [0]
-                  : [businessUnit]
-                : BUSINESS_TKN_UNIT
-                ? [BUSINESS_TKN_UNIT]
-                : undefined,
-              isActive: 1,
-            }}
-            control={control}
-            name="stockFrom"
-            required
-          />
-          <ProAsyncSelect
-            label="İcra statusu"
-            data={statusData[0]?.statuses?.map((item) => ({
-              ...item,
-              label: item.name,
-              value: item.id,
-            }))}
-            setData={() => {}}
-            fetchData={() => {}}
-            async={false}
-            filter={{}}
-            required
-            control={control}
-            allowClear={false}
-            name="status"
-          />
+          >
+            <ProDateTimePicker
+              name="operationDate"
+              control={control}
+              setValue={setValue}
+              editDate={editDate}
+              disabled={dateIsDisabled}
+            />
+            <ProAsyncSelect
+              label="Valyuta"
+              disabled={currenciesIsDisabled}
+              data={currencies}
+              setData={setCurrencies}
+              fetchData={getCurrencies}
+              async={false}
+              filter={{
+                limit: 1000,
+                withRatesOnly: 1,
+                applyBusinessUnitTenantPersonFilter: 1,
+                businessUnitIds: id
+                  ? businessUnit === null
+                    ? [0]
+                    : [businessUnit]
+                  : BUSINESS_TKN_UNIT
+                  ? [BUSINESS_TKN_UNIT]
+                  : undefined,
+              }}
+              required
+              control={control}
+              allowClear={false}
+              name="currency"
+            />
+            <View style={{ position: "relative" }}>
+              <View style={{ position: "absolute", right: 10, top: 10 }}>
+                <ProButton
+                  label={<AntDesign name="pluscircle" size={14} />}
+                  type="transparent"
+                  onClick={() => {
+                    setModalVisible(true);
+                  }}
+                  padding={"0px"}
+                />
+              </View>
+              <ProAsyncSelect
+                label="Qarşı tərəf"
+                disabled={counterpartyIsDisabled}
+                data={
+                  id
+                    ? [
+                        {
+                          label: invoiceInfo.counterparty,
+                          value: invoiceInfo.supplierId || invoiceInfo.clientId,
+                          id: invoiceInfo.supplierId || invoiceInfo.clientId,
+                        },
+                        ...addedCounterparty,
+                        ...counterparties.filter(
+                          (supplier) =>
+                            supplier.id !== invoiceInfo?.supplierId &&
+                            !addedCounterparty
+                              .map(({ id }) => id)
+                              ?.includes(supplier.id)
+                        ),
+                      ]
+                    : [
+                        ...addedCounterparty,
+                        ...counterparties.filter(
+                          (supplier) =>
+                            supplier.id !== invoiceInfo?.supplierId &&
+                            !addedCounterparty
+                              .map(({ id }) => id)
+                              ?.includes(supplier.id)
+                        ),
+                      ]
+                }
+                setData={setCounterparties}
+                fetchData={getCounterparties}
+                async
+                filter={{
+                  limit: 20,
+                  page: 1,
+                  categories: [1],
+                  applyBusinessUnitTenantPersonFilter: 1,
+                  businessUnitIds: id
+                    ? businessUnit === null
+                      ? [0]
+                      : [businessUnit]
+                    : BUSINESS_TKN_UNIT
+                    ? [BUSINESS_TKN_UNIT]
+                    : undefined,
+                }}
+                control={control}
+                required
+                name="counterparty"
+              />
+            </View>
+
+            <ProAsyncSelect
+              label="Menecer"
+              disabled={managerIsDisabled}
+              data={[
+                ...defaultSelectedSalesman,
+                ...employees.filter(
+                  (item) =>
+                    !defaultSelectedSalesman
+                      .map(({ id }) => id)
+                      ?.includes(item.id)
+                ),
+              ]}
+              setData={setEmployees}
+              fetchData={getEmployees}
+              async
+              filter={{
+                limit: 20,
+                page: 1,
+                applyBusinessUnitTenantPersonFilter: 1,
+                businessUnitIds: id
+                  ? businessUnit === null
+                    ? [0]
+                    : [businessUnit]
+                  : BUSINESS_TKN_UNIT
+                  ? [BUSINESS_TKN_UNIT]
+                  : undefined,
+              }}
+              control={control}
+              combineValue
+              valueName="lastName"
+              required
+              name="saleManager"
+            />
+            <ProAsyncSelect
+              label="Müqavilə"
+              disabled={contractIsDisabled || !getValues("counterparty")}
+              data={contracts}
+              setData={setContracts}
+              fetchData={getContracts}
+              valueName="contract_no"
+              valueNameTwo="serialNumber"
+              async
+              filter={{
+                limit: 20,
+                page: 1,
+                status: 1,
+                directions: [2],
+                contacts: [getValues("counterparty")],
+                businessUnitIds: id
+                  ? businessUnit === null
+                    ? [0]
+                    : [businessUnit]
+                  : BUSINESS_TKN_UNIT
+                  ? [BUSINESS_TKN_UNIT]
+                  : undefined,
+                endDateFrom: moment(getValues("operationDate"))?.format(
+                  "DD-MM-YYYY"
+                ),
+              }}
+              control={control}
+              name="contract"
+            />
+            <ProAsyncSelect
+              label="Agent"
+              data={agents}
+              setData={setAgents}
+              fetchData={getCounterparties}
+              async
+              filter={{
+                limit: 20,
+                page: 1,
+              }}
+              control={control}
+              name="agent"
+            />
+            <ProAsyncSelect
+              label="Anbar(Haradan)"
+              disabled={stockIsDisabled}
+              data={stock}
+              async={false}
+              setData={setStock}
+              fetchData={getStock}
+              filter={{
+                limit: 1000,
+                applyBusinessUnitTenantPersonFilter: 1,
+                businessUnitIds: id
+                  ? businessUnit === null
+                    ? [0]
+                    : [businessUnit]
+                  : BUSINESS_TKN_UNIT
+                  ? [BUSINESS_TKN_UNIT]
+                  : undefined,
+                isActive: 1,
+              }}
+              control={control}
+              name="stockFrom"
+              required
+            />
+            {statusData.some((item) => item.isStatusActive === true) ? (
+              <ProAsyncSelect
+                label="İcra statusu"
+                disabled={statusIsDisabled}
+                data={statusData[0]?.statuses?.map((item) => ({
+                  ...item,
+                  label: item.name,
+                  value: item.id,
+                }))}
+                setData={() => {}}
+                fetchData={() => {}}
+                async={false}
+                filter={{}}
+                required
+                control={control}
+                allowClear={false}
+                name="status"
+              />
+            ) : null}
+          </View>
+          <View style={{ display: "flex", flexDirection: "row" }}>
+            <ProButton
+              label="Təsdiq et"
+              type="primary"
+              onClick={handleSubmit(onSubmit)}
+              loading={loading}
+            />
+            <ProButton
+              label="İmtina"
+              type="transparent"
+              onClick={() => navigation.push("DashboardTabs")}
+            />
+          </View>
         </View>
-        <View style={{ display: "flex", flexDirection: "row" }}>
-          <ProButton
-            label="Təsdiq et"
-            type="primary"
-            onClick={handleSubmit(onSubmit)}
-            loading={loading}
-          />
-          <ProButton
-            label="İmtina"
-            type="transparent"
-            onClick={() => navigation.push("DashboardTabs")}
-          />
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 };
 
@@ -737,6 +834,10 @@ const SecondRoute = (props) => {
     businessUnit,
     id,
     invoiceInfo,
+    userSettings,
+    sales_price,
+    sales_invoice,
+    sales_discount,
   } = props;
 
   const [data, setData] = useState(tableData);
@@ -752,6 +853,8 @@ const SecondRoute = (props) => {
   const [selectedRow, setSelectedRow] = useState(undefined);
   const [bronModal, setBronModal] = useState(false);
   const [productData, setProductData] = useState();
+  const [applylastPrice, setApplyLastPrice] = useState(false);
+  const [autofillDiscountPrice, setAutofillDiscountPrice] = useState(false);
 
   const handleBron = (productId, productName) => {
     setBronModal(true);
@@ -761,6 +864,31 @@ const SecondRoute = (props) => {
       stocks: getValues("stockFrom"),
     });
   };
+
+  useEffect(() => {
+    if (userSettings) {
+      const settings =
+        sales_invoice.options.length !== 0 &&
+        sales_invoice.options.find(({ id }) => id === 4).checked
+          ? "Draft_SALES_MODULE_SALES"
+          : "SALESBUYS_SALES_OPERATION";
+      if (
+        userSettings[settings]?.length > 0 &&
+        userSettings[settings] !== null
+      ) {
+        const parseData = JSON?.parse(userSettings[settings]);
+        const applylastPrice = parseData?.find(
+          (column) => column.dataIndex === "applylastPrice"
+        )?.visible;
+        const autofillDiscountPrice = parseData.find(
+          (column) => column.dataIndex === "autofillDiscountPrice"
+        )?.visible;
+
+        setAutofillDiscountPrice(autofillDiscountPrice);
+        setApplyLastPrice(applylastPrice);
+      }
+    }
+  }, [userSettings, invoiceInfo, sales_invoice]);
 
   const setProductPrice = (productId, newPrice) => {
     const newSelectedProducts = selectedProducts.map((selectedProduct) => {
@@ -982,39 +1110,6 @@ const SecondRoute = (props) => {
       }
       return selectedProduct;
     });
-    const newtotalPrice = newSelectedProducts.reduce(
-      (totalPrice, { totalPricePerProduct }) =>
-        math.add(totalPrice, parseFloat(totalPricePerProduct || 0)),
-      0
-    );
-    const discountAmount = newSelectedProducts.reduce(
-      (
-        totalDiscountAmount,
-        { totalPricePerProduct, discountPercentage, totalEndPricePerProduct }
-      ) =>
-        math.add(
-          totalDiscountAmount,
-          parseFloat(discountPercentage ?? 0)
-            ? math.sub(
-                parseFloat(totalPricePerProduct || 0),
-                parseFloat(totalEndPricePerProduct || 0)
-              )
-            : 0
-        ),
-      0
-    );
-    const discountPercentage = math.mul(
-      math.div(parseFloat(discountAmount || 0), newtotalPrice || 1),
-      100
-    );
-    // setDiscount(
-    //   parseFloat(discountPercentage ?? 0)
-    //     ? {
-    //         percentage: toFixedNumber(parseFloat(discountPercentage || 0), 4),
-    //         amount: discountAmount,
-    //       }
-    //     : {}
-    // );
     setSelectedProducts(newSelectedProducts);
   };
 
@@ -1085,6 +1180,7 @@ const SecondRoute = (props) => {
       math.div(parseFloat(discountAmount || 0), parseFloat(newtotalPrice) || 1),
       100
     );
+
     setDiscount({
       percentage: `${roundTo(parseFloat(discountPercentage || 0), 4)}`,
       amount: `${parseFloat(toFixedNumber(discountAmount || 0, 2))}`,
@@ -1408,18 +1504,79 @@ const SecondRoute = (props) => {
     setDiscount(
       Number(value ?? 0) >= 0 && value !== undefined && !amount
         ? {
-            percentage: toFixedNumber(parseFloat(discountPercentage || 0), 4),
-            amount: parseFloat(toFixedNumber(discountAmount || 0, 2)),
+            percentage: `${toFixedNumber(
+              parseFloat(discountPercentage || 0),
+              4
+            )}`,
+            amount: `${parseFloat(toFixedNumber(discountAmount || 0, 2))}`,
           }
         : discount
     );
   };
 
   useEffect(() => {
-    if (vat.percentage && id && Number(invoiceInfo?.taxAmount ?? 0)) {
-      setUseVat(true);
+    if (!id) {
+      if (endPrice && Number(vat?.percentage ?? 0)) {
+        const totalTaxRoadPrice = reduce(
+          selectedProducts,
+          (acc, product) => acc + Number(product?.totalRoadTaxAmount ?? 0),
+          0
+        );
+
+        const AMOUNT = roundTo(
+          math.div(
+            math.mul(
+              Number(Number(vat.percentage ?? 0) || 0),
+              math.sub(Number(endPrice || 0), Number(totalTaxRoadPrice || 0))
+            ),
+            100
+          ),
+          2
+        );
+        if (useVat) {
+          setVat({
+            newPercentage: Number(vat.percentage ?? 0) || undefined,
+            newAmount: AMOUNT || undefined,
+          });
+          selectedProducts.forEach((product) => {
+            const newtaxAmount =
+              !product?.isVatFree && vat.percentage
+                ? math.div(
+                    math.mul(
+                      parseFloat(vat.percentage ?? 0) ?? 0,
+                      parseFloat(
+                        product?.discountAmount
+                          ? product?.discountedPrice
+                          : product.invoicePriceBack || 0
+                      ) || 0
+                    ) || 0,
+                    100
+                  )
+                : 0;
+            setTaxAmount(
+              product?.productUniqueId ?? product?.id,
+              Number(vat.percentage ?? 0),
+              Number(vat.percentage ?? 0)
+            );
+          });
+        }
+      }
+    }
+  }, [endPrice]);
+
+  useEffect(() => {
+    if (id) {
+      if (vat.percentage && Number(invoiceInfo?.taxAmount ?? 0)) {
+        setUseVat(true);
+      } else {
+        setUseVat(false);
+      }
     }
   }, [vat.percentage, invoiceInfo]);
+
+  useEffect(() => {
+    setSelectedProducts([]);
+  }, [getValues("stockFrom")]);
 
   useEffect(() => {
     if (id && invoiceInfo && Number(invoiceInfo?.taxAmount ?? 0)) {
@@ -1539,20 +1696,6 @@ const SecondRoute = (props) => {
         0
       );
 
-      const discountPercentage = math.mul(
-        math.div(
-          parseFloat(discountAmount || 0) || 0,
-          Number(
-            selectedProducts?.reduce(
-              (totalPrice, { totalPricePerProduct }) =>
-                math.add(totalPrice, Number(totalPricePerProduct || 0)),
-              0
-            ) || 0
-          ) || 1
-        ),
-        100
-      );
-
       setSelectedProducts(newSelectedProducts);
       setVat({
         percentage: newVatPercentage,
@@ -1609,13 +1752,25 @@ const SecondRoute = (props) => {
                     "expense_amount"
                   );
                 }}
-                style={{
-                  margin: 10,
-                  padding: 5,
-                  borderWidth: 1,
-                  borderRadius: 5,
-                  borderColor: "#D0DBEA",
-                }}
+                style={
+                  sales_price?.permission === 1
+                    ? {
+                        margin: 10,
+                        padding: 5,
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        borderColor: "#D0DBEA",
+                        backgroundColor: "#ececec",
+                      }
+                    : {
+                        margin: 10,
+                        padding: 5,
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        borderColor: "#D0DBEA",
+                      }
+                }
+                editable={sales_price?.permission !== 1}
               />
             </View>,
             <View>
@@ -1665,19 +1820,21 @@ const SecondRoute = (props) => {
                         {currentMeasurement?.unitOfMeasurementName?.toLowerCase()}
                       </Text>
                     }
-                  >
-                    <Text>
-                      {currentMeasurement?.unitOfMeasurementName
-                        ? (currentMeasurement?.unitOfMeasurementName?.length > 6
-                            ? `${currentMeasurement?.unitOfMeasurementName?.slice(
-                                0,
-                                6
-                              )}...`
-                            : currentMeasurement?.unitOfMeasurementName
-                          )?.toLowerCase()
-                        : ""}
-                    </Text>
-                  </ProTooltip>
+                    trigger={
+                      <Text>
+                        {currentMeasurement?.unitOfMeasurementName
+                          ? (currentMeasurement?.unitOfMeasurementName?.length >
+                            6
+                              ? `${currentMeasurement?.unitOfMeasurementName?.slice(
+                                  0,
+                                  6
+                                )}...`
+                              : currentMeasurement?.unitOfMeasurementName
+                            )?.toLowerCase()
+                          : ""}
+                      </Text>
+                    }
+                  />
                 </View>
               )}
             </View>,
@@ -1728,19 +1885,20 @@ const SecondRoute = (props) => {
                       ))}
                     </View>
                   }
-                >
-                  <View
-                    style={{
-                      backgroundColor: "#45a8e291",
-                      borderRadius: 5,
-                      width: 24,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text>{serialNumbers?.length}</Text>
-                  </View>
-                </ProTooltip>
+                  trigger={
+                    <View
+                      style={{
+                        backgroundColor: "#45a8e291",
+                        borderRadius: 5,
+                        width: 24,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text>{serialNumbers?.length}</Text>
+                    </View>
+                  }
+                />
               )}
             </View>,
             <View>
@@ -1765,13 +1923,25 @@ const SecondRoute = (props) => {
                     "expense_amount"
                   );
                 }}
-                style={{
-                  margin: 10,
-                  padding: 5,
-                  borderWidth: 1,
-                  borderRadius: 5,
-                  borderColor: "#D0DBEA",
-                }}
+                style={
+                  sales_price?.permission === 1
+                    ? {
+                        margin: 10,
+                        padding: 5,
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        borderColor: "#D0DBEA",
+                        backgroundColor: "#ececec",
+                      }
+                    : {
+                        margin: 10,
+                        padding: 5,
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        borderColor: "#D0DBEA",
+                      }
+                }
+                editable={sales_price?.permission !== 1}
               />
             </View>,
             <View>
@@ -2035,36 +2205,36 @@ const SecondRoute = (props) => {
     }
   };
 
-  const handleVatChange = (value, type) => {
-    const re = /^[0-9]{1,9}\.?[0-9]{0,2}$/;
-    if (type === "percentage" && re_percent.test(value) && value <= 100) {
-      const AMOUNT = roundTo(
-        math.div(math.mul(Number(value || 0), Number(endPrice || 0)), 100),
-        2
-      );
-      setVat({
-        percentage: value || undefined,
-        amount: `${AMOUNT}` || undefined,
-      });
-    }
+  const handleAutoDiscountChange = (value, type) => {
+    const re = /^[0-9]{0,13}\.?[0-9]{0,13}$/;
+    const totalPrice = Number(
+      selectedProducts.reduce(
+        (totalPrice, { totalPricePerProduct }) =>
+          math.add(totalPrice, Number(totalPricePerProduct || 0)),
+        0
+      ) || 0
+    );
     if (
       type === "amount" &&
-      re.test(value) &&
-      Number(value) <= Number(100000)
+      regex_amount.test(value) &&
+      Number(value) <= Number(totalPrice)
     ) {
-      const PERCENTAGE = roundTo(
-        math.div(math.mul(Number(value || 0), 100), Number(endPrice || 1)),
-        4
+      const discountAmount = selectedProducts.reduce(
+        (totalDiscountAmount, { invoiceQuantity, discountAmount }) =>
+          math.add(
+            totalDiscountAmount,
+            math.mul(Number(invoiceQuantity || 0), Number(discountAmount || 0))
+          ),
+        0
       );
-      setVat({
-        percentage: `${PERCENTAGE}` || undefined,
-        amount: value || undefined,
-      });
-    }
-    if (value === "") {
-      setVat({
-        percentage: null,
-        amount: null,
+      const discountPercentage = math.mul(
+        math.div(Number(discountAmount || 0), totalPrice || 1),
+        100
+      );
+
+      setDiscount({
+        percentage: `${toFixedNumber(discountPercentage, 5)}` || undefined,
+        amount: `${Number(discountAmount || 0).toFixed(3)}` || undefined,
       });
     }
   };
@@ -2087,7 +2257,6 @@ const SecondRoute = (props) => {
                 100
               )
             : 0;
-
         const taxAmountPercentage = math.mul(
           math.div(
             parseFloat(newPercentage || 0),
@@ -2117,9 +2286,15 @@ const SecondRoute = (props) => {
         );
         return {
           ...selectedProduct,
-          taxAmount: newPercentage,
+          taxAmount:
+            parseFloat(selectedProduct?.invoiceQuantity || 0) !== 0
+              ? newPercentage
+              : 0,
           taxAmountPercentage: parseFloat(taxAmountPercentage)?.toFixed(2),
-          originalTaxAmount: newPercentage,
+          originalTaxAmount:
+            parseFloat(selectedProduct?.invoiceQuantity || 0) !== 0
+              ? newPercentage
+              : 0,
           totalTaxAmount: parseFloat(totalTaxAmount),
           taxAmountWithPrice: parseFloat(taxAmountWithPrice),
           totalTaxAmountWithPrice: parseFloat(totalTaxAmountWithPrice),
@@ -2168,40 +2343,40 @@ const SecondRoute = (props) => {
         0
       );
 
-      const discountPercentage = math.mul(
-        math.div(
-          parseFloat(discountAmount || 0) || 0,
-          Number(
-            selectedProducts.reduce(
-              (totalPrice, { totalPricePerProduct }) =>
-                math.add(totalPrice, Number(totalPricePerProduct || 0)),
-              0
-            ) || 0
-          ) || 1
-        ),
-        100
-      );
-
       setSelectedProducts(newSelectedProducts);
 
       setVat({
         percentage: newVatPercentage,
         amount: newVatAmount,
       });
-
-      // setDiscount({
-      //   percentage: toFixedNumber(parseFloat(discountPercentage || 0), 4),
-      //   amount: parseFloat(toFixedNumber(discountAmount || 0, 2)),
-      // });
     }
     if (!checked) {
       setVat({
         percentage: undefined,
         amount: undefined,
       });
-      selectedProducts.forEach((product) => {
-        handleTaxAmount(product?.productUniqueId ?? product?.id, 0);
+      const newSelectedProducts = selectedProducts.map((selectedProduct) => {
+        const taxAmountPercentage = 0;
+        const totalTaxAmount = 0;
+        const taxAmountWithPrice = parseFloat(
+          selectedProduct?.discountedPrice || selectedProduct?.invoicePrice || 0
+        );
+        const totalTaxAmountWithPrice = math.mul(
+          parseFloat(taxAmountWithPrice || 0),
+          parseFloat(selectedProduct?.invoiceQuantity || 0)
+        );
+        return {
+          ...selectedProduct,
+          taxAmount: 0,
+          taxAmountPercentage: parseFloat(taxAmountPercentage)?.toFixed(2),
+          originalTaxAmount: 0,
+          totalTaxAmount: parseFloat(totalTaxAmount),
+          taxAmountWithPrice: parseFloat(taxAmountWithPrice),
+          totalTaxAmountWithPrice: parseFloat(totalTaxAmountWithPrice),
+        };
       });
+
+      setSelectedProducts(newSelectedProducts);
     }
     if (vatPayments.length > 0) {
       setPayments([]);
@@ -2238,6 +2413,8 @@ const SecondRoute = (props) => {
               limit: 25,
               page: 1,
               includeServices: 1,
+              priceInvoiceTypes: applylastPrice ? [2] : undefined,
+              withMinMaxPrice: applylastPrice ? 1 : undefined,
             },
           }).then((data) => {
             if (data?.length) {
@@ -2344,7 +2521,7 @@ const SecondRoute = (props) => {
           });
         }
       }, 300),
-    [serialNumber]
+    [serialNumber, applylastPrice]
   );
 
   const transformUniqueIdData = (productsArr = []) =>
@@ -2442,8 +2619,8 @@ const SecondRoute = (props) => {
       100
     );
     setDiscount({
-      percentage: discountPercentage || undefined,
-      amount: discountAmountTotal || undefined,
+      percentage: `${discountPercentage}` || undefined,
+      amount: `${discountAmountTotal}` || undefined,
     });
     setSelectedProducts(newSelectedProducts);
   };
@@ -2458,24 +2635,66 @@ const SecondRoute = (props) => {
           (product) => product?.id == productId
         );
 
-    fetchSalesPrice({
-      filter: {
-        currency: getValues("currency"),
-        products: [newProd?.productId],
-        businessUnitIds: id
-          ? businessUnit === null
-            ? [0]
-            : [businessUnit]
-          : BUSINESS_TKN_UNIT
-          ? [BUSINESS_TKN_UNIT]
-          : undefined,
-      },
-    }).then((priceTypes) => {
+    if (!applylastPrice) {
+      fetchSalesPrice({
+        filter: {
+          currency: getValues("currency"),
+          products: [newProd?.productId],
+          contactPrice: getValues("counterparty"),
+          stock: getValues("stockFrom"),
+          manager: getValues("salesman"),
+          businessUnitIds: id
+            ? businessUnit === null
+              ? [0]
+              : [businessUnit]
+            : BUSINESS_TKN_UNIT
+            ? [BUSINESS_TKN_UNIT]
+            : undefined,
+        },
+      }).then((priceTypes) => {
+        const productsWithPrices = productsByName?.map((product) => {
+          const productPricesTypeObj = handleProductPriceType(
+            priceTypes?.[product.id],
+            product.unitOfMeasurementId,
+            autofillDiscountPrice
+          );
+
+          return {
+            ...product,
+            prices: priceTypes?.[product.id],
+            invoicePrice: productPricesTypeObj?.invoicePrice
+              ? Number(productPricesTypeObj?.invoicePrice)
+              : null,
+            autoDiscountedPrice: productPricesTypeObj?.discountedPrice,
+            mainInvoicePrice: productPricesTypeObj?.invoicePrice,
+            invoiceQuantity: product?.catalog?.isWithoutSerialNumber
+              ? 1
+              : product?.quantity === 1
+              ? 1
+              : null,
+            productPricetype: productPricesTypeObj.productPriceType,
+          };
+        });
+        const currentProduct = !serialNumber
+          ? transformUniqueIdData(productsWithPrices).find(
+              (product) => product?.id === productId
+            )
+          : transformUniqueIdForSerialData(productsWithPrices).find(
+              (product) => product?.id == productId
+            );
+
+        setProductsByName([]);
+        handleProductSelect(newSerialid, currentProduct, productId);
+      });
+    } else {
+      const priceTypes = [];
       const productsWithPrices = productsByName?.map((product) => {
-        const productPricesTypeObj = handleProductPriceType(
-          priceTypes?.[product.id],
-          product.unitOfMeasurementId
+        const price = math.mul(
+          parseFloat(product?.lastPrice ?? 0),
+          product?.coefficientRelativeToMain ?? 1
         );
+
+        const productPricesTypeObj = { invoicePrice: price };
         return {
           ...product,
           prices: priceTypes?.[product.id],
@@ -2492,7 +2711,7 @@ const SecondRoute = (props) => {
           productPricetype: productPricesTypeObj.productPriceType,
         };
       });
-      const currentProduct = !serialNumber
+      const selectedProduct = !serialNumber
         ? transformUniqueIdData(productsWithPrices).find(
             (product) => product?.id === productId
           )
@@ -2500,85 +2719,124 @@ const SecondRoute = (props) => {
             (product) => product?.id == productId
           );
 
-      setProductsByName([]);
-      if (
-        serialNumber &&
-        transformUniqueIdData(selectedProducts)?.find((product) =>
-          product.id?.includes(newSerialid)
-        )
-      ) {
-        const updatedSelectedProducts = transformUniqueIdForSerialData(
-          selectedProducts
-        )?.map((product) => {
-          if (product.id.includes(newSerialid)) {
-            const serialNumbers = [
-              ...(product?.serialNumbers || []),
-              productId?.slice(newSerialid?.length),
-            ];
-            return {
-              ...product,
-              id: product?.productId,
-              serialNumbers,
-              invoiceQuantity: serialNumbers?.length,
-              invoiceProducts: [
-                ...product?.invoiceProducts,
-                { ...currentProduct, invoiceQuantity: 1 },
-              ],
-            };
-          }
-          return product;
-        });
-        setSelectedProducts(updatedSelectedProducts);
-      } else {
-        const newProduct = {
-          ...currentProduct,
-          id: currentProduct?.productId,
-        };
-        const total_expense_amount = selectedExpenses.reduce(
-          (total_amount, { expense_amount }) =>
-            math.add(
-              total_amount,
-              math.mul(Number(expense_amount) || 0, Number(1))
-            ),
-          0
-        );
-        const invoice_amount = [...selectedProducts, newProduct].reduce(
-          (totalPrice, { invoiceQuantity, invoicePrice }) =>
-            math.add(
-              totalPrice,
-              math.mul(Number(invoiceQuantity) || 0, Number(invoicePrice) || 0)
-            ),
-          0
+      handleProductSelect(newSerialid, selectedProduct, productId);
+    }
+  };
+
+  const handleProductSelect = (newSerialid, currentProduct, productId) => {
+    if (
+      serialNumber &&
+      transformUniqueIdData(selectedProducts)?.find((product) =>
+        product.id?.includes(newSerialid)
+      )
+    ) {
+      const updatedSelectedProducts = transformUniqueIdForSerialData(
+        selectedProducts
+      )?.map((product) => {
+        if (product.id.includes(newSerialid)) {
+          const serialNumbers = [
+            ...(product?.serialNumbers || []),
+            productId?.slice(newSerialid?.length),
+          ];
+          return {
+            ...product,
+            id: product?.productId,
+            serialNumbers,
+            invoiceQuantity: serialNumbers?.length,
+            invoiceProducts: [
+              ...product?.invoiceProducts,
+              { ...currentProduct, invoiceQuantity: 1 },
+            ],
+          };
+        }
+        return product;
+      });
+      setSelectedProducts(updatedSelectedProducts);
+    } else {
+      const newProduct = {
+        ...currentProduct,
+        id: currentProduct?.productId,
+      };
+      const total_expense_amount = selectedExpenses.reduce(
+        (total_amount, { expense_amount }) =>
+          math.add(
+            total_amount,
+            math.mul(Number(expense_amount) || 0, Number(1))
+          ),
+        0
+      );
+      const invoice_amount = [...selectedProducts, newProduct].reduce(
+        (totalPrice, { invoiceQuantity, invoicePrice }) =>
+          math.add(
+            totalPrice,
+            math.mul(Number(invoiceQuantity) || 0, Number(invoicePrice) || 0)
+          ),
+        0
+      );
+
+      const expense_amount_in_percentage = math.div(
+        math.mul(Number(total_expense_amount), 100),
+        Number(invoice_amount) || 1
+      );
+
+      const invoiceQuantity = newProduct?.invoiceQuantity
+        ? newProduct?.invoiceQuantity
+        : newProduct.catalog?.isWithoutSerialNumber
+        ? 1
+        : null;
+
+      const addSelectedProduct = (productData = []) => {
+        const unitOfMeasurements = generateProductMultiMesaurements(
+          productData?.[0],
+          newProduct
         );
 
-        const expense_amount_in_percentage = math.div(
-          math.mul(Number(total_expense_amount), 100),
-          Number(invoice_amount) || 1
-        );
-
-        const invoiceQuantity = newProduct?.invoiceQuantity
-          ? newProduct?.invoiceQuantity
-          : newProduct.catalog?.isWithoutSerialNumber
+        const invQuantity = isNaN(Number(productId))
           ? 1
+          : newProduct?.catalog?.isWithoutSerialNumber
+          ? newProduct?.catalog?.isServiceType
+            ? 1
+            : Number(newProduct?.quantity || 1) >= 1
+            ? 1
+            : defaultNumberFormat(toFixedNumber(newProduct?.quantity, 4))
           : null;
 
-        const addSelectedProduct = (productData = []) => {
-          const unitOfMeasurements = generateProductMultiMesaurements(
-            productData?.[0],
-            newProduct
-          );
-
-          const invQuantity = isNaN(Number(productId))
-            ? 1
-            : newProduct?.catalog?.isWithoutSerialNumber
-            ? newProduct?.catalog?.isServiceType
-              ? 1
-              : Number(newProduct?.quantity || 1) >= 1
-              ? 1
-              : defaultNumberFormat(toFixedNumber(newProduct?.quantity, 4))
-            : null;
-
-          const roadTaxAmount = productData?.[0]?.isRoadTaxActive
+        const roadTaxAmount = productData?.[0]?.isRoadTaxActive
+          ? find(
+              productData?.[0]?.roadTaxes,
+              (tax) => tax?.tenantCurrency === getValues("currency")
+            )?.amount
+            ? Number(
+                find(
+                  productData?.[0]?.roadTaxes,
+                  (tax) => tax?.tenantCurrency === getValues("currency")
+                )?.amount || 0
+              )
+            : null
+          : 0;
+        const totalTaxAmount = roadTaxAmount
+          ? math.mul(Number(roadTaxAmount || 0), Number(invQuantity || 0))
+          : null;
+        const newProductObj = {
+          ...newProduct,
+          productUniqueId: uuid(),
+          attachmentId: productData?.[0]?.attachmentId,
+          attachmentName: productData?.[0]?.attachmentName,
+          pricePerUnit: productData?.[0]?.pricePerUnit,
+          defaultSalesPriceInMainCurrency:
+            productData?.[0]?.pricePerUnitInMainCurrency,
+          bronQuantityInStock: productData?.[0]?.bronQuantity,
+          salesDraftQuantityInStock: productData?.[0]?.salesDraftQuantity,
+          brandName: productData?.[0]?.brandName,
+          lifetime: productData?.[0]?.lifetime,
+          isVatFree: productData?.[0]?.isVatFree,
+          taxAmount: productData?.[0]?.taxAmount,
+          totalTaxAmount: productData?.[0]?.totalTaxAmount,
+          taxAmountWithPrice: productData?.[0]?.taxAmountWithPrice,
+          totalTaxAmountWithPrice: productData?.[0]?.totalTaxAmountWithPrice,
+          isRoadTaxActive: productData?.[0]?.isRoadTaxActive,
+          roadTaxes: productData?.[0]?.roadTaxes,
+          roadTaxAmount: productData?.[0]?.isRoadTaxActive
             ? find(
                 productData?.[0]?.roadTaxes,
                 (tax) => tax?.tenantCurrency === getValues("currency")
@@ -2590,213 +2848,263 @@ const SecondRoute = (props) => {
                   )?.amount || 0
                 )
               : null
-            : 0;
-          const totalTaxAmount = roadTaxAmount
-            ? math.mul(Number(roadTaxAmount || 0), Number(invQuantity || 0))
-            : null;
-          const newProductObj = {
-            ...newProduct,
-            productUniqueId: uuid(),
-            attachmentId: productData?.[0]?.attachmentId,
-            attachmentName: productData?.[0]?.attachmentName,
-            pricePerUnit: productData?.[0]?.pricePerUnit,
-            defaultSalesPriceInMainCurrency:
-              productData?.[0]?.pricePerUnitInMainCurrency,
-            bronQuantityInStock: productData?.[0]?.bronQuantity,
-            salesDraftQuantityInStock: productData?.[0]?.salesDraftQuantity,
-            discountAmount: 0,
-            brandName: productData?.[0]?.brandName,
-            lifetime: productData?.[0]?.lifetime,
-            isVatFree: productData?.[0]?.isVatFree,
-            taxAmount: productData?.[0]?.taxAmount,
-            totalTaxAmount: productData?.[0]?.totalTaxAmount,
-            taxAmountWithPrice: productData?.[0]?.taxAmountWithPrice,
-            totalTaxAmountWithPrice: productData?.[0]?.totalTaxAmountWithPrice,
-            isRoadTaxActive: productData?.[0]?.isRoadTaxActive,
-            roadTaxes: productData?.[0]?.roadTaxes,
-            roadTaxAmount: productData?.[0]?.isRoadTaxActive
-              ? find(
-                  productData?.[0]?.roadTaxes,
-                  (tax) => tax?.tenantCurrency === getValues("currency")
-                )?.amount
-                ? Number(
-                    find(
-                      productData?.[0]?.roadTaxes,
-                      (tax) => tax?.tenantCurrency === getValues("currency")
-                    )?.amount || 0
-                  )
-                : null
-              : 0,
-            totalRoadTaxAmount: totalTaxAmount,
-            totalEndPricePerProduct: math.add(
-              Number(totalTaxAmount || 0),
-              Number(
-                math.mul(
-                  Number(newProduct?.invoicePrice || 0),
-                  Number(invoiceQuantity || 0)
-                ) || 0
-              )
-            ),
-            quantity: !isNil(newProduct.totalQuantity)
-              ? defaultNumberFormat(
-                  math.div(
-                    Number(newProduct.totalQuantity || 0),
-                    Number(newProduct.coefficientRelativeToMain || 1)
-                  )
+            : 0,
+          totalRoadTaxAmount: totalTaxAmount,
+          totalEndPricePerProduct: math.add(
+            Number(totalTaxAmount || 0),
+            Number(
+              math.mul(
+                Number(newProduct?.invoicePrice || 0),
+                Number(invoiceQuantity || 0)
+              ) || 0
+            )
+          ),
+          quantity: !isNil(newProduct.totalQuantity)
+            ? defaultNumberFormat(
+                math.div(
+                  Number(newProduct.totalQuantity || 0),
+                  Number(newProduct.coefficientRelativeToMain || 1)
                 )
-              : defaultNumberFormat(newProduct?.quantity || 0),
-            discountPercentage: 0,
-            totalQuantity: newProduct?.totalQuantity ?? newProduct?.quantity,
-            product_code: newProduct?.product_code ?? newProduct?.productCode,
-            invoiceQuantity: invQuantity,
-            ...(serialNumber
-              ? { serialNumbers: [newProduct?.serial_number] }
-              : []),
-            ...(serialNumber ? { invoiceQuantity: 1 } : []),
-            ...(serialNumber
-              ? {
-                  invoiceProducts: [{ ...currentProduct, invoiceQuantity: 1 }],
-                }
-              : []),
-            discountedPrice:
-              defaultNumberFormat(newProduct?.invoicePrice ?? 0) ?? null,
-            totalPricePerProduct: math.mul(
-              Number(newProduct?.invoicePrice || 0),
-              Number(invoiceQuantity || 0)
-            ),
-            unitOfMeasurementID:
-              unitOfMeasurements.length == 1
-                ? unitOfMeasurements[0].id
-                : newProduct?.unitOfMeasurementId,
+              )
+            : defaultNumberFormat(newProduct?.quantity || 0),
+          totalQuantity: newProduct?.totalQuantity ?? newProduct?.quantity,
+          product_code: newProduct?.product_code ?? newProduct?.productCode,
+          invoiceQuantity: invQuantity,
+          ...(serialNumber
+            ? { serialNumbers: [newProduct?.serial_number] }
+            : []),
+          ...(serialNumber ? { invoiceQuantity: 1 } : []),
+          ...(serialNumber
+            ? {
+                invoiceProducts: [{ ...currentProduct, invoiceQuantity: 1 }],
+              }
+            : []),
+          discountedPrice:
+            newProduct?.autoDiscountedPrice ??
+            newProduct?.invoicePrice ??
+            0 ??
+            null,
+          discountPercentage: newProduct?.autoDiscountedPrice
+            ? math
+                .mul(
+                  math.div(
+                    math.sub(
+                      newProduct?.invoicePrice ?? 0,
+                      newProduct?.autoDiscountedPrice ?? 0
+                    ) || 0,
+                    Number(newProduct?.invoicePrice ?? 0)
+                  ),
+                  100
+                )
+                ?.toFixed(4)
+            : 0,
+          discountAmount: newProduct?.autoDiscountedPrice
+            ? math.sub(
+                newProduct?.invoicePrice ?? 0,
+                newProduct?.autoDiscountedPrice ?? 0
+              )
+            : 0,
+          totalEndPricePerProduct: math.mul(
+            newProduct?.invoicePrice ?? 0,
+            serialNumber ? 1 : newProduct?.invoiceQuantity ?? 0
+          ),
 
-            unitOfMeasurementId:
-              unitOfMeasurements.length == 1
-                ? unitOfMeasurements[0].id
-                : productData?.[0]?.unitOfMeasurementId,
-            mainUnitOfMeasurementName: productData?.[0]?.unitOfMeasurementName,
-            hasMultiMeasurement:
-              productData?.[0]?.unitOfMeasurements?.length > 1,
-            unitOfMeasurements,
-          };
+          totalPricePerProduct: math.mul(
+            Number(newProduct?.invoicePrice || 0),
+            Number(invoiceQuantity || 0)
+          ),
+          unitOfMeasurementID:
+            unitOfMeasurements.length == 1
+              ? unitOfMeasurements[0].id
+              : newProduct?.unitOfMeasurementId,
 
-          fetchProductInvoices({
-            filter: {
-              datetime: moment(getValues("operationDate"))?.format(
-                fullDateTimeWithSecond
-              ),
-            },
-            apiEnd: getValues("stockFrom"),
-            apiEndTwo: currentProduct?.productId,
-          }).then((data) => {
-            if (
-              Object.keys(data).length === 1 &&
-              currentProduct?.catalog?.isServiceType === false &&
-              currentProduct?.catalog?.isWithoutSerialNumber === false
-            ) {
-              updateProduct(currentProduct?.productId, Object.values(data));
-
-              setProductsToHandle([
-                ...productsToHandle,
-                ...Object.values(data).map((obj) => ({
-                  ...obj,
-                  productId: currentProduct?.productId,
-                })),
-              ]);
-              setSelectedProducts(
-                [...selectedProducts, newProductObj].map((product) => {
-                  const expense_amount = math.div(
-                    math.mul(
-                      Number(product.invoicePrice) || 0,
-                      Number(expense_amount_in_percentage) || 0
-                    ),
-                    100
-                  );
-
-                  return {
-                    ...product,
-                    expense_amount_in_percentage: roundToDown(
-                      expense_amount_in_percentage,
-                      4
-                    ),
-                    expense_amount: roundToDown(expense_amount, 4),
-                    invoiceQuantity: 1,
-                    serialNumbers:
-                      product.productUniqueId === newProductObj.productUniqueId
-                        ? [Object.values(data)[0].serial_number]
-                        : product.serialNumbers,
-                    invoiceProducts:
-                      product.productUniqueId === newProductObj.productUniqueId
-                        ? Object.values(data).map((item) => ({
-                            ...item,
-                            invoiceQuantity: item.invoiceQuantity
-                              ? item.invoiceQuantity
-                              : 1,
-                          }))
-                        : product.invoiceProducts,
-                    cost: roundToDown(
-                      math.add(
-                        Number(expense_amount) || 0,
-                        Number(product?.invoicePrice) || 0
-                      ),
-                      4
-                    ),
-                  };
-                })
-              );
-            } else {
-              setSelectedProducts(
-                [...selectedProducts, newProductObj].map((product) => {
-                  const expense_amount = math.div(
-                    math.mul(
-                      Number(product.invoicePrice) || 0,
-                      Number(expense_amount_in_percentage) || 0
-                    ),
-                    100
-                  );
-
-                  return {
-                    ...product,
-                    expense_amount_in_percentage: roundToDown(
-                      expense_amount_in_percentage,
-                      4
-                    ),
-                    expense_amount: roundToDown(expense_amount, 4),
-                    invoiceQuantity: product?.invoiceQuantity
-                      ? product?.invoiceQuantity
-                      : product.catalog?.isWithoutSerialNumber
-                      ? 1
-                      : null,
-                    cost: roundToDown(
-                      math.add(
-                        Number(expense_amount) || 0,
-                        Number(product?.invoicePrice) || 0
-                      ),
-                      4
-                    ),
-                  };
-                })
-              );
-            }
-          });
+          unitOfMeasurementId:
+            unitOfMeasurements.length == 1
+              ? unitOfMeasurements[0].id
+              : productData?.[0]?.unitOfMeasurementId,
+          mainUnitOfMeasurementName: productData?.[0]?.unitOfMeasurementName,
+          hasMultiMeasurement: productData?.[0]?.unitOfMeasurements?.length > 1,
+          unitOfMeasurements,
         };
 
-        addSelectedProduct([
-          {
-            ...currentProduct,
-            unitOfMeasurementID:
-              currentProduct?.mainUnitOfMeasurementId ??
-              currentProduct?.unitOfMeasurementId,
-            unitOfMeasurementId:
-              currentProduct?.mainUnitOfMeasurementId ??
-              currentProduct?.unitOfMeasurementId,
-            unitOfMeasurementName:
-              currentProduct?.mainUnitOfMeasurementName ??
-              currentProduct?.unitOfMeasurementName,
+        fetchProductInvoices({
+          filter: {
+            datetime: moment(getValues("operationDate"))?.format(
+              fullDateTimeWithSecond
+            ),
           },
-        ]);
-      }
-    });
+          apiEnd: getValues("stockFrom"),
+          apiEndTwo: currentProduct?.productId,
+        }).then((data) => {
+          if (
+            Object.keys(data).length === 1 &&
+            currentProduct?.catalog?.isServiceType === false &&
+            currentProduct?.catalog?.isWithoutSerialNumber === false
+          ) {
+            updateProduct(currentProduct?.productId, Object.values(data));
+
+            setProductsToHandle([
+              ...productsToHandle,
+              ...Object.values(data).map((obj) => ({
+                ...obj,
+                productId: currentProduct?.productId,
+              })),
+            ]);
+            setSelectedProducts(
+              [...selectedProducts, newProductObj].map((product) => {
+                const expense_amount = math.div(
+                  math.mul(
+                    Number(product.invoicePrice) || 0,
+                    Number(expense_amount_in_percentage) || 0
+                  ),
+                  100
+                );
+
+                return {
+                  ...product,
+                  expense_amount_in_percentage: roundToDown(
+                    expense_amount_in_percentage,
+                    4
+                  ),
+                  expense_amount: roundToDown(expense_amount, 4),
+                  invoiceQuantity: 1,
+                  serialNumbers:
+                    product.productUniqueId === newProductObj.productUniqueId
+                      ? [Object.values(data)[0].serial_number]
+                      : product.serialNumbers,
+                  invoiceProducts:
+                    product.productUniqueId === newProductObj.productUniqueId
+                      ? Object.values(data).map((item) => ({
+                          ...item,
+                          invoiceQuantity: item.invoiceQuantity
+                            ? item.invoiceQuantity
+                            : 1,
+                        }))
+                      : product.invoiceProducts,
+                  cost: roundToDown(
+                    math.add(
+                      Number(expense_amount) || 0,
+                      Number(product?.invoicePrice) || 0
+                    ),
+                    4
+                  ),
+                };
+              })
+            );
+          } else {
+            setSelectedProducts(
+              [...selectedProducts, newProductObj].map((product) => {
+                const expense_amount = math.div(
+                  math.mul(
+                    Number(product.invoicePrice) || 0,
+                    Number(expense_amount_in_percentage) || 0
+                  ),
+                  100
+                );
+
+                return {
+                  ...product,
+                  expense_amount_in_percentage: roundToDown(
+                    expense_amount_in_percentage,
+                    4
+                  ),
+                  expense_amount: roundToDown(expense_amount, 4),
+                  invoiceQuantity: product?.invoiceQuantity
+                    ? product?.invoiceQuantity
+                    : product.catalog?.isWithoutSerialNumber
+                    ? 1
+                    : null,
+                  cost: roundToDown(
+                    math.add(
+                      Number(expense_amount) || 0,
+                      Number(product?.invoicePrice) || 0
+                    ),
+                    4
+                  ),
+                };
+              })
+            );
+            let discountAmountTotal = [
+              ...selectedProducts,
+              newProductObj,
+            ].reduce(
+              (totalDiscountAmount, { discountAmount, invoiceQuantity }) => {
+                return math.add(
+                  totalDiscountAmount,
+                  math.mul(
+                    Number(discountAmount || 0),
+                    Number(invoiceQuantity || 0)
+                  )
+                );
+              },
+              0
+            );
+            const newtotalPrice = [...selectedProducts, newProductObj].reduce(
+              (totalPrice, { totalPricePerProduct }) => {
+                return math.add(totalPrice, Number(totalPricePerProduct || 0));
+              },
+              0
+            );
+            let discountPercentage = math.mul(
+              math.div(Number(discountAmountTotal || 0), newtotalPrice || 1),
+              100
+            );
+            setDiscount({
+              percentage: `${discountPercentage}` || undefined,
+              amount: `${discountAmountTotal}` || undefined,
+            });
+          }
+        });
+      };
+
+      addSelectedProduct([
+        {
+          ...currentProduct,
+          unitOfMeasurementID:
+            currentProduct?.mainUnitOfMeasurementId ??
+            currentProduct?.unitOfMeasurementId,
+          unitOfMeasurementId:
+            currentProduct?.mainUnitOfMeasurementId ??
+            currentProduct?.unitOfMeasurementId,
+          unitOfMeasurementName:
+            currentProduct?.mainUnitOfMeasurementName ??
+            currentProduct?.unitOfMeasurementName,
+        },
+      ]);
+    }
   };
+
+  // useEffect(() => {
+  //   const totalPrice = Number(
+  //     selectedProducts.reduce(
+  //       (totalPrice, { totalPricePerProduct }) =>
+  //         math.add(totalPrice, Number(totalPricePerProduct || 0)),
+  //       0
+  //     ) || 0
+  //   );
+  //   let newEndPrice = roundTo(Number(totalPrice || 0), 4);
+
+  //   if (totalPrice && discount.amount) {
+  //     newEndPrice = roundTo(
+  //       math.sub(Number(totalPrice) || 0, Number(discount.amount || 0)),
+  //       4
+  //     );
+  //     handleAutoDiscountChange(Number(discount.amount) || 0, totalPrice);
+  //   } else if (discount.amount) {
+  //     newEndPrice = 0;
+  //   }
+
+  //   setEndPrice(Number(newEndPrice || 0));
+  //   // setEndPrice(math.add(Number(newEndPrice || 0), totalTaxRoadPrice));
+  //   if (Number(discount.percentage) === 100) {
+  //     setVat({
+  //       percentage: null,
+  //       amount: null,
+  //     });
+  //     return;
+  //   }
+  // }, [selectedProducts, discount.amount]);
+
   useEffect(() => {
     const totalPrice = Number(
       selectedProducts.reduce(
@@ -2805,50 +3113,21 @@ const SecondRoute = (props) => {
         0
       ) || 0
     );
-    let newEndPrice = roundTo(Number(totalPrice || 0), 4);
-    // const totalTaxRoadPrice = reduce(
-    //   selectedProducts,
-    //   (acc, product) => acc + Number(product?.totalRoadTaxAmount ?? 0),
-    //   0
-    // );
-    if (totalPrice && discount.amount) {
-      newEndPrice = roundTo(
-        math.sub(Number(totalPrice) || 0, Number(discount.amount || 0)),
-        4
-      );
-    } else if (discount.amount) {
-      newEndPrice = 0;
-    }
-
-    setEndPrice(Number(newEndPrice || 0));
-    // setEndPrice(math.add(Number(newEndPrice || 0), totalTaxRoadPrice));
-    if (Number(discount.percentage) === 100) {
-      setVat({
-        percentage: null,
-        amount: null,
+    if (discount.amount && totalPrice) {
+      handleAutoDiscountChange(Number(discount.amount) || 0, "amount");
+    } else {
+      setDiscount({
+        percentage: undefined,
+        amount: undefined,
       });
-      return;
     }
-    // if (
-    //   useVat
-    // ) {
-    //   setVat({
-    //     percentage:
-    //       Number(defaultNumberFormat(vatSettingState?.percentage || 0)) ||
-    //       undefined,
-    //     amount: roundTo(
-    //       math.div(
-    //         math.mul(
-    //           Number(vatSettingState?.percentage || 0),
-    //           Number(totalPrice || 0)
-    //         ),
-    //         100
-    //       ),
-    //       4
-    //     ),
-    //   });
-    // }
-  }, [selectedProducts, discount.amount]);
+  }, [selectedProducts]);
+
+  useEffect(() => {
+    if (useVat) {
+      handleUseVat(true);
+    }
+  }, [selectedProducts.length]);
 
   const toggleCatalogModal = () => {
     setCatalogModalIsVisible(
@@ -2895,6 +3174,7 @@ const SecondRoute = (props) => {
         }}
       >
         <SelectFromProductModal
+          autofillDiscountPrice={autofillDiscountPrice}
           getValues={getValues}
           handleProductPriceType={handleProductPriceType}
           handleModal={togleInvoiceModal}
@@ -2908,12 +3188,14 @@ const SecondRoute = (props) => {
               ? BUSINESS_TKN_UNIT
               : undefined
           }
+          contactId={getValues("counterparty")}
           salesStocks={getValues("stockFrom")}
           sales
           type="sales"
           setSelectedProducts={setSelectedProducts}
           selectedProducts={selectedProducts}
           setDiscount={setDiscount}
+          applylastPrice={applylastPrice}
         />
       </Modal>
 
@@ -2931,6 +3213,8 @@ const SecondRoute = (props) => {
         setSelectedProducts={setSelectedProducts}
         productsToHandle={productsToHandle}
         setProductsToHandle={setProductsToHandle}
+        applylastPrice={applylastPrice}
+        autofillDiscountPrice={autofillDiscountPrice}
       />
 
       <View style={{ display: "flex", flexDirection: "column" }}>
@@ -3055,58 +3339,79 @@ const SecondRoute = (props) => {
             {currencies.find(({ id }) => id === getValues("currency"))?.code}
           </Text>
         </View>
-        <View style={{ ...styles.footer, alignItems: "center" }}>
-          <View>
-            <Text>Endirim:</Text>
-          </View>
+        {sales_discount?.permission !== 0 && (
+          <View style={{ ...styles.footer, alignItems: "center" }}>
+            <View>
+              <Text>Endirim:</Text>
+            </View>
 
-          <View style={{ display: "flex", flexDirection: "row" }}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                value={discount?.percentage}
-                keyboardType="numeric"
-                underlineColorAndroid="transparent"
-                onChangeText={(event) => {
-                  handleDiscountChange(event, "percentage", null, true);
-                }}
-                style={{
-                  width: 90,
-                  padding: 5,
-                }}
-              />
-              <Text style={styles.prefix}>%</Text>
-            </View>
-            <View style={{ ...styles.inputContainer, marginRight: 0 }}>
-              <TextInput
-                value={discount?.amount}
-                keyboardType="numeric"
-                underlineColorAndroid="transparent"
-                onChangeText={(event) => {
-                  handleDiscountChange(event, "amount");
-                }}
-                style={{
-                  width: 80,
-                  padding: 5,
-                }}
-              />
-              <Text style={styles.prefix}>
-                {
-                  currencies?.find(({ id }) => id === getValues("currency"))
-                    ?.code
+            <View style={{ display: "flex", flexDirection: "row" }}>
+              <View
+                style={
+                  sales_discount?.permission !== 1
+                    ? [styles.inputContainer]
+                    : [styles.inputContainer, styles.disabledInputContainer]
                 }
-              </Text>
+              >
+                <TextInput
+                  value={discount?.percentage}
+                  keyboardType="numeric"
+                  underlineColorAndroid="transparent"
+                  onChangeText={(event) => {
+                    handleDiscountChange(event, "percentage", null, true);
+                  }}
+                  editable={sales_discount?.permission !== 1}
+                  style={{
+                    width: 90,
+                    padding: 5,
+                  }}
+                />
+                <Text style={styles.prefix}>%</Text>
+              </View>
+              <View
+                style={
+                  sales_discount?.permission !== 1
+                    ? [{ ...styles.inputContainer, marginRight: 0 }]
+                    : [
+                        { ...styles.inputContainer, marginRight: 0 },
+                        styles.disabledInputContainer,
+                      ]
+                }
+              >
+                <TextInput
+                  value={discount?.amount}
+                  keyboardType="numeric"
+                  underlineColorAndroid="transparent"
+                  onChangeText={(event) => {
+                    handleDiscountChange(event, "amount");
+                  }}
+                  editable={sales_discount?.permission !== 1}
+                  style={{
+                    width: 80,
+                    padding: 5,
+                  }}
+                />
+                <Text style={styles.prefix}>
+                  {
+                    currencies?.find(({ id }) => id === getValues("currency"))
+                      ?.code
+                  }
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-        <View style={styles.footer}>
-          <Text>Son qiymət:</Text>
-          <Text>
-            {formatNumberToLocale(
-              defaultNumberFormat(endPrice?.toFixed(2) ?? 0)
-            )}{" "}
-            {currencies?.find(({ id }) => id === getValues("currency"))?.code}
-          </Text>
-        </View>
+        )}
+        {sales_discount?.permission !== 0 && (
+          <View style={styles.footer}>
+            <Text>Son qiymət:</Text>
+            <Text>
+              {formatNumberToLocale(
+                defaultNumberFormat(endPrice?.toFixed(2) ?? 0)
+              )}{" "}
+              {currencies?.find(({ id }) => id === getValues("currency"))?.code}
+            </Text>
+          </View>
+        )}
         <View style={{ ...styles.footer, alignItems: "center" }}>
           <View style={styles.checkboxContainer}>
             <CheckBox
@@ -3197,6 +3502,8 @@ const ThirdRoute = (props) => {
     businessUnit,
     id,
     invoiceInfo,
+    settingsData,
+    cashBoxIsDisabled,
   } = props;
   const [paymentTableData, setPaymentTableData] = useState([]);
   const [vatPaymentTableData, setVatPaymentTableData] = useState([]);
@@ -3208,7 +3515,7 @@ const ThirdRoute = (props) => {
     "Hesab növü",
     "Hesab",
     "Ödəniş məbləği",
-    `Ödəniş məbləği (${currencies.find(({ isMain }) => isMain)?.code})`,
+    `Silinəcək məbləğ (${currencies.find(({ isMain }) => isMain)?.code})`,
     "Sil",
   ];
 
@@ -3273,7 +3580,16 @@ const ThirdRoute = (props) => {
     const newExpenses = (type === "vat" ? vatPayments : payments).map(
       (selectedExpenseItem, index) => {
         if (index === expenseItemId) {
-          if (typeOperation === "paymentAmount") {
+          if (typeOperation === "amountToDelete") {
+            return {
+              ...selectedExpenseItem,
+              amountToDelete: newPrice,
+              rate: math.div(
+                Number(newPrice),
+                selectedExpenseItem?.paymentAmount
+              ),
+            };
+          } else if (typeOperation === "paymentAmount") {
             if (
               (re_paymentAmount.test(newPrice) &&
                 Number(newPrice) <= Number(limit)) ||
@@ -3282,9 +3598,13 @@ const ThirdRoute = (props) => {
               return {
                 ...selectedExpenseItem,
                 [typeOperation || "paymentAmount"]: newPrice,
+                amountToDelete: undefined,
               };
             }
           } else {
+            const currentRate = currencies?.find(
+              ({ id }) => id === newPrice
+            )?.rate;
             return {
               ...selectedExpenseItem,
               [typeOperation]: newPrice,
@@ -3294,6 +3614,43 @@ const ThirdRoute = (props) => {
                   : typeOperation === "cashboxId"
                   ? newPrice
                   : selectedExpenseItem?.cashboxId,
+              amountToDelete:
+                typeOperation === "currency"
+                  ? undefined
+                  : selectedExpenseItem?.amountToDelete,
+              paymentAmount:
+                typeOperation === "currency"
+                  ? `${customRound(
+                      Number(
+                        math.div(
+                          Number(
+                            type === "vat"
+                              ? defaultNumberFormat(
+                                  math.sub(
+                                    customRound(vat.amount || 0, 1, 2),
+                                    Number(invoiceInfo?.paidTaxAmount || 0)
+                                  )
+                                )
+                              : defaultNumberFormat(
+                                  customRound(
+                                    math.sub(
+                                      Number(endPrice),
+                                      Number(invoiceInfo?.paidAmount || 0)
+                                    ),
+                                    1,
+                                    2
+                                  )
+                                ) || 0
+                          ),
+                          Number(currentRate || 1)
+                        )
+                      )
+                    )}`
+                  : selectedExpenseItem?.paymentAmount,
+              rate:
+                typeOperation === "currency"
+                  ? Number(currentRate || 1)
+                  : selectedExpenseItem?.rate,
             };
           }
         }
@@ -3306,50 +3663,6 @@ const ThirdRoute = (props) => {
       setPayments(newExpenses);
     }
   };
-
-  useEffect(() => {
-    if (isSelected && payments.length === 0) {
-      setPayments([
-        {
-          currency: getValues("currency"),
-          cashBoxType: payments?.[0]?.cashBoxType
-            ? payments?.[0]?.cashBoxType
-            : undefined,
-          cashboxId: payments?.[0]?.cashboxId
-            ? payments?.[0]?.cashboxId
-            : undefined,
-          paymentAmount: `${customRound(
-            math.sub(
-              parseFloat(endPrice || 0)?.toFixed(2),
-              Number(invoiceInfo?.paidAmount || 0)
-            ),
-            1,
-            2
-          )}`,
-        },
-      ]);
-    }
-  }, [isSelected]);
-
-  useEffect(() => {
-    if (isVatSelected && vatPayments.length === 0) {
-      setVatPayments([
-        {
-          currency: getValues("currency"),
-          cashBoxType: vatPayments?.[0]?.cashBoxType
-            ? vatPayments?.[0]?.cashBoxType
-            : undefined,
-          cashboxId: vatPayments?.[0]?.cashboxId
-            ? vatPayments?.[0]?.cashboxId
-            : undefined,
-          paymentAmount: `${math.sub(
-            parseFloat(vat.amount || 0).toFixed(2) || 0,
-            parseFloat(invoiceInfo?.paidTaxAmount || 0)
-          )}`,
-        },
-      ]);
-    }
-  }, [isVatSelected]);
 
   useEffect(() => {
     if (
@@ -3412,6 +3725,114 @@ const ThirdRoute = (props) => {
       ).then((response) => setExpenseRates(response));
     }
   }, [payments, getValues("operationDate"), getValues("currency")]);
+
+  useEffect(() => {
+    if (isSelected && payments.length === 0) {
+      if (settingsData?.length) {
+        const cashboxId = settingsData?.find(
+          (item) => item.cashbox !== undefined
+        )?.cashbox;
+        const type = allCashBoxNames?.find(({ id }) => id === cashboxId)?.type;
+        if (cashboxId) {
+          setPayments([
+            {
+              currency: getValues("currency"),
+              cashBoxType: type
+                ? type
+                : payments?.[0]?.cashBoxType
+                ? payments?.[0]?.cashBoxType
+                : undefined,
+              cashboxId: cashboxId
+                ? cashboxId
+                : payments?.[0]?.cashboxId
+                ? payments?.[0]?.cashboxId
+                : undefined,
+              paymentAmount: `${customRound(
+                math.sub(
+                  parseFloat(endPrice || 0)?.toFixed(2),
+                  Number(invoiceInfo?.paidAmount || 0)
+                ),
+                1,
+                2
+              )}`,
+            },
+          ]);
+        }
+      } else {
+        setPayments([
+          {
+            currency: getValues("currency"),
+            cashBoxType: payments?.[0]?.cashBoxType
+              ? payments?.[0]?.cashBoxType
+              : undefined,
+            cashboxId: payments?.[0]?.cashboxId
+              ? payments?.[0]?.cashboxId
+              : undefined,
+            paymentAmount: `${customRound(
+              math.sub(
+                parseFloat(endPrice || 0)?.toFixed(2),
+                Number(invoiceInfo?.paidAmount || 0)
+              ),
+              1,
+              2
+            )}`,
+          },
+        ]);
+      }
+    }
+  }, [settingsData, allCashBoxNames?.length, payments?.length, isSelected]);
+  useEffect(() => {
+    if (isVatSelected && vatPayments.length === 0) {
+      if (settingsData?.length) {
+        const cashboxId = settingsData?.find(
+          (item) => item.cashbox !== undefined
+        )?.cashbox;
+        const type = allCashBoxNames?.find(({ id }) => id === cashboxId)?.type;
+        if (cashboxId) {
+          setVatPayments([
+            {
+              currency: getValues("currency"),
+              cashBoxType: type
+                ? type
+                : vatPayments?.[0]?.cashBoxType
+                ? vatPayments?.[0]?.cashBoxType
+                : undefined,
+              cashboxId: cashboxId
+                ? cashboxId
+                : vatPayments?.[0]?.cashboxId
+                ? vatPayments?.[0]?.cashboxId
+                : undefined,
+              paymentAmount: `${math.sub(
+                parseFloat(vat.amount || 0).toFixed(2) || 0,
+                parseFloat(invoiceInfo?.paidTaxAmount || 0)
+              )}`,
+            },
+          ]);
+        }
+      } else {
+        setVatPayments([
+          {
+            currency: getValues("currency"),
+            cashBoxType: vatPayments?.[0]?.cashBoxType
+              ? vatPayments?.[0]?.cashBoxType
+              : undefined,
+            cashboxId: vatPayments?.[0]?.cashboxId
+              ? vatPayments?.[0]?.cashboxId
+              : undefined,
+            paymentAmount: `${math.sub(
+              parseFloat(vat.amount || 0).toFixed(2) || 0,
+              parseFloat(invoiceInfo?.paidTaxAmount || 0)
+            )}`,
+          },
+        ]);
+      }
+    }
+  }, [
+    settingsData,
+    allCashBoxNames?.length,
+    vatPayments?.length,
+    isVatSelected,
+  ]);
 
   useEffect(() => {
     if (
@@ -3510,7 +3931,17 @@ const ThirdRoute = (props) => {
   useEffect(() => {
     setPaymentTableData(
       payments.map(
-        ({ currency, cashBoxType, cashboxId, paymentAmount }, index) => {
+        (
+          {
+            currency,
+            cashBoxType,
+            cashboxId,
+            paymentAmount,
+            amountToDelete,
+            rate,
+          },
+          index
+        ) => {
           return [
             index + 1,
             <View>
@@ -3544,6 +3975,7 @@ const ThirdRoute = (props) => {
                 style={{ margin: 5 }}
                 setData={() => {}}
                 fetchData={() => {}}
+                disabled={cashBoxIsDisabled}
                 defaultValue={cashBoxType}
                 notForm
                 handleSelectValue={(value) => {
@@ -3584,6 +4016,7 @@ const ThirdRoute = (props) => {
                 }}
                 defaultValue={cashboxId}
                 className={!cashboxId ? styles.inputError : {}}
+                disabled={cashBoxIsDisabled}
               />
               <View style={{ display: "flex" }}>
                 {cashboxId ? (
@@ -3595,9 +4028,8 @@ const ThirdRoute = (props) => {
                         {getCashboxDetail(cashboxId)}
                       </Text>
                     }
-                  >
-                    <FontAwesome name="info-circle" size={18} />
-                  </ProTooltip>
+                    trigger={<FontAwesome name="info-circle" size={18} />}
+                  />
                 ) : (
                   <FontAwesome
                     disabled={!cashboxId}
@@ -3629,33 +4061,49 @@ const ThirdRoute = (props) => {
               />
             </View>,
             <View>
-              <Text style={{ textAlign: "center" }}>
-                {formatNumberToLocale(
-                  defaultNumberFormat(
-                    math.mul(
-                      Number(
-                        expenseRates[
-                          [
-                            ...new Set(
-                              payments
-                                .filter(
-                                  ({ currency }) => currency !== undefined
-                                )
-                                .map(({ currency }) => currency)
-                            ),
-                          ].indexOf(payments[index].currency)
-                        ]?.rate || 1
-                      ),
-                      Number(paymentAmount || 0)
-                    ) || 0
-                  )
-                )}{" "}
-                {
-                  currencies?.find(
-                    (currency) => currency.id === getValues("currency")
-                  )?.code
+              <TextInput
+                value={
+                  amountToDelete
+                    ? amountToDelete
+                    : `${
+                        math.mul(
+                          Number(
+                            rate && Number(rate) > 0
+                              ? Number(rate)
+                              : expenseRates[
+                                  [
+                                    ...new Set(
+                                      payments
+                                        .filter(
+                                          ({ currency }) =>
+                                            currency !== undefined
+                                        )
+                                        .map(({ currency }) => currency)
+                                    ),
+                                  ].indexOf(currency)
+                                ]?.rate || 1
+                          ),
+                          Number(paymentAmount || 0)
+                        ) || 0
+                      }`
                 }
-              </Text>
+                keyboardType="numeric"
+                onChangeText={(event) => {
+                  handlePriceChange(
+                    index === 0 ? 0 : index || payments[index].id,
+                    event,
+                    "amountToDelete",
+                    10000000
+                  );
+                }}
+                style={{
+                  margin: 10,
+                  padding: 5,
+                  borderWidth: 1,
+                  borderRadius: 5,
+                  borderColor: "#D0DBEA",
+                }}
+              />
             </View>,
             <ProButton
               label={<FontAwesome name="trash" size={18} color="red" />}
@@ -3673,7 +4121,17 @@ const ThirdRoute = (props) => {
   useEffect(() => {
     setVatPaymentTableData(
       vatPayments.map(
-        ({ currency, cashBoxType, cashboxId, paymentAmount }, index) => {
+        (
+          {
+            currency,
+            cashBoxType,
+            cashboxId,
+            paymentAmount,
+            amountToDelete,
+            rate,
+          },
+          index
+        ) => {
           return [
             index + 1,
             <View>
@@ -3709,6 +4167,7 @@ const ThirdRoute = (props) => {
                 fetchData={() => {}}
                 defaultValue={cashBoxType}
                 notForm
+                disabled={cashBoxIsDisabled}
                 handleSelectValue={(value) => {
                   handlePriceChange(index, value, "cashBoxType", 1000, "vat");
                 }}
@@ -3747,6 +4206,7 @@ const ThirdRoute = (props) => {
                 }}
                 defaultValue={cashboxId}
                 className={!cashboxId ? styles.inputError : {}}
+                disabled={cashBoxIsDisabled}
               />
               <View style={{ display: "flex" }}>
                 {cashboxId ? (
@@ -3758,9 +4218,8 @@ const ThirdRoute = (props) => {
                         {getCashboxDetail(cashboxId)}
                       </Text>
                     }
-                  >
-                    <FontAwesome name="info-circle" size={18} />
-                  </ProTooltip>
+                    trigger={<FontAwesome name="info-circle" size={18} />}
+                  />
                 ) : (
                   <FontAwesome
                     disabled={!cashboxId}
@@ -3793,33 +4252,50 @@ const ThirdRoute = (props) => {
               />
             </View>,
             <View>
-              <Text>
-                {formatNumberToLocale(
-                  defaultNumberFormat(
-                    math.mul(
-                      Number(
-                        vatExpenseRates[
-                          [
-                            ...new Set(
-                              vatPayments
-                                .filter(
-                                  ({ currency }) => currency !== undefined
-                                )
-                                .map(({ currency }) => currency)
-                            ),
-                          ].indexOf(vatPayments[index].currency)
-                        ]?.rate || 1
-                      ),
-                      Number(paymentAmount || 0)
-                    ) || 0
-                  )
-                )}{" "}
-                {
-                  currencies?.find(
-                    (currency) => currency.id === getValues("currency")
-                  )?.code
+              <TextInput
+                value={
+                  amountToDelete
+                    ? amountToDelete
+                    : `${
+                        math.mul(
+                          Number(
+                            rate && Number(rate) > 0
+                              ? Number(rate)
+                              : vatExpenseRates[
+                                  [
+                                    ...new Set(
+                                      vatPayments
+                                        .filter(
+                                          ({ currency }) =>
+                                            currency !== undefined
+                                        )
+                                        .map(({ currency }) => currency)
+                                    ),
+                                  ].indexOf(currency)
+                                ]?.rate || 1
+                          ),
+                          Number(paymentAmount || 0)
+                        ) || 0
+                      }`
                 }
-              </Text>
+                keyboardType="numeric"
+                onChangeText={(event) => {
+                  handlePriceChange(
+                    index === 0 ? 0 : index || vatPayments[index].id,
+                    event,
+                    "amountToDelete",
+                    10000000,
+                    "vat"
+                  );
+                }}
+                style={{
+                  margin: 10,
+                  padding: 5,
+                  borderWidth: 1,
+                  borderRadius: 5,
+                  borderColor: "#D0DBEA",
+                }}
+              />
             </View>,
             <ProButton
               label={<FontAwesome name="trash" size={18} color="red" />}
@@ -3836,25 +4312,77 @@ const ThirdRoute = (props) => {
 
   const addNewRow = (vat) => {
     if (vat === "vat") {
-      setVatPayments([
-        ...vatPayments,
-        {
-          currency: undefined,
-          cashBoxType: undefined,
-          cashboxId: undefined,
-          paymentAmount: 0,
-        },
-      ]);
+      if (settingsData?.length) {
+        const cashboxId = settingsData?.find(
+          (item) => item.cashbox !== undefined
+        )?.cashbox;
+        const type = allCashBoxNames?.find(({ id }) => id === cashboxId)?.type;
+        if (cashboxId) {
+          setVatPayments([
+            ...vatPayments,
+            {
+              currency: undefined,
+              cashBoxType: type
+                ? type
+                : vatPayments?.[0]?.cashBoxType
+                ? vatPayments?.[0]?.cashBoxType
+                : undefined,
+              cashboxId: cashboxId
+                ? cashboxId
+                : vatPayments?.[0]?.cashboxId
+                ? vatPayments?.[0]?.cashboxId
+                : undefined,
+              paymentAmount: 0,
+            },
+          ]);
+        }
+      } else {
+        setVatPayments([
+          ...vatPayments,
+          {
+            currency: undefined,
+            cashBoxType: undefined,
+            cashboxId: undefined,
+            paymentAmount: 0,
+          },
+        ]);
+      }
     } else {
-      setPayments([
-        ...payments,
-        {
-          currency: undefined,
-          cashBoxType: undefined,
-          cashboxId: undefined,
-          paymentAmount: 0,
-        },
-      ]);
+      if (settingsData?.length) {
+        const cashboxId = settingsData?.find(
+          (item) => item.cashbox !== undefined
+        )?.cashbox;
+        const type = allCashBoxNames?.find(({ id }) => id === cashboxId)?.type;
+        if (cashboxId) {
+          setPayments([
+            ...payments,
+            {
+              currency: undefined,
+              cashBoxType: type
+                ? type
+                : payments?.[0]?.cashBoxType
+                ? payments?.[0]?.cashBoxType
+                : undefined,
+              cashboxId: cashboxId
+                ? cashboxId
+                : payments?.[0]?.cashboxId
+                ? payments?.[0]?.cashboxId
+                : undefined,
+              paymentAmount: 0,
+            },
+          ]);
+        }
+      } else {
+        setPayments([
+          ...payments,
+          {
+            currency: undefined,
+            cashBoxType: undefined,
+            cashboxId: undefined,
+            paymentAmount: 0,
+          },
+        ]);
+      }
     }
   };
 
@@ -4548,6 +5076,7 @@ const Sale = ({ navigation, route }) => {
     formState: { errors, isValid },
     getValues,
     setValue,
+    watch,
   } = useForm({
     defaultValues: {
       operationDate: new Date(),
@@ -4568,12 +5097,15 @@ const Sale = ({ navigation, route }) => {
   const [expenseRates, setExpenseRates] = useState([]);
   const [vatExpenseRates, setVatExpenseRates] = useState([]);
   const [errorIndex, setErrorIndex] = useState(undefined);
-  const [useVat, setUseVat] = useState(false);
+  const [useVat, setUseVat] = useState(true);
   const [loading, setLoading] = useState(false);
   const [vatSettingState, setVatSettingsState] = useState(null);
   const [statusData, setStatusData] = useState([]);
   const [statusesLoading, setStatusesLoading] = useState(true);
   const [editDate, setEditDate] = useState(undefined);
+  const [cashBoxIsDisabled, setCashBoxIsDisabled] = useState(false);
+
+  const [settingsData, setSettingsData] = useState([]);
   const [discount, setDiscount] = useState({
     percentage: undefined,
     amount: undefined,
@@ -4582,21 +5114,36 @@ const Sale = ({ navigation, route }) => {
     percentage: undefined,
     amount: undefined,
   });
-  const [routes] = React.useState([
+  const [routes, setRoutes] = useState([
     { key: "first", title: "Ümumi məlumat" },
     { key: "second", title: "Qaimə" },
     { key: "third", title: "Ödəniş" },
   ]);
 
-  const { profile, BUSINESS_TKN_UNIT } = useContext(TenantContext);
-  const handleProductPriceType = (productPriceTypes, unitOfMeasurementId) => {
+  const { profile, BUSINESS_TKN_UNIT, userSettings, permissionsByKeyValue } =
+    useContext(TenantContext);
+
+  const { sales_discount, sales_price, sales_invoice } = permissionsByKeyValue;
+  const handleProductPriceType = (
+    productPriceTypes,
+    unitOfMeasurementId,
+    type
+  ) => {
     const selectedProductPriceType =
       values(productPriceTypes?.unitOfMeasurements)?.find(
         (unit) => unit?.unitOfMeasurementId === unitOfMeasurementId
       ) ?? productPriceTypes;
-    const invoicePrice = getValues("client")
-      ? selectedProductPriceType.contactPrice?.convertedAmount
-      : selectedProductPriceType?.default?.convertedAmount;
+
+    const invoicePrice =
+      type &&
+      watch("counterparty") &&
+      !selectedProductPriceType?.contactPrice?.isCostType
+        ? selectedProductPriceType?.contactPrice?.convertedAmount
+          ? selectedProductPriceType?.default?.convertedAmount
+          : null
+        : watch("counterparty")
+        ? selectedProductPriceType?.contactPrice?.convertedAmount
+        : selectedProductPriceType?.default?.convertedAmount;
     const productPriceType = [
       {
         convertedAmount: selectedProductPriceType?.default?.convertedAmount,
@@ -4605,7 +5152,16 @@ const Sale = ({ navigation, route }) => {
       },
       ...(selectedProductPriceType?.prices ?? []),
     ];
-    return { invoicePrice, productPriceType };
+
+    const discountedPrice = selectedProductPriceType?.contactPrice?.isCostType
+      ? null
+      : type &&
+        watch("counterparty") &&
+        selectedProductPriceType?.contactPrice?.convertedAmount
+      ? selectedProductPriceType?.contactPrice?.convertedAmount
+      : null;
+
+    return { invoicePrice, productPriceType, discountedPrice };
   };
   const updateEditInvoice = (selectedContract, isDraft) => {
     const {
@@ -4900,10 +5456,9 @@ const Sale = ({ navigation, route }) => {
           (a, b) => a?.rowOrder - b?.rowOrder
         )
       );
+
       setDiscount({
-        percentage: discountAmount
-          ? defaultNumberFormat(discountPercentage)
-          : null,
+        percentage: discountAmount ? `${discountPercentage}` : null,
         amount: discountAmount || undefined,
       });
       // X
@@ -4918,6 +5473,26 @@ const Sale = ({ navigation, route }) => {
     setValue("agent", agentId || undefined);
     setValue("stockFrom", stockFromId ?? undefined);
   };
+
+  useEffect(() => {
+    if (invoiceInfo) {
+      if (
+        Number(endPrice) === Number(invoiceInfo?.paidAmount) &&
+        Number(vat.amount) === Number(invoiceInfo?.paidTaxAmount)
+      ) {
+        setRoutes([
+          { key: "first", title: "Ümumi məlumat" },
+          { key: "second", title: "Qaimə" },
+        ]);
+      } else {
+        setRoutes([
+          { key: "first", title: "Ümumi məlumat" },
+          { key: "second", title: "Qaimə" },
+          { key: "third", title: "Ödəniş" },
+        ]);
+      }
+    }
+  }, [invoiceInfo, endPrice, vat]);
 
   useEffect(() => {
     if (invoiceInfo) {
@@ -5093,17 +5668,22 @@ const Sale = ({ navigation, route }) => {
       cashboxes_ul: payments?.map((item) => item.cashboxId) || [
         invoicePaymentAccount,
       ],
-      // rates_ul: payments?.map((item) =>
-      //   item.rate && Number(item.rate) > 0
-      //     ? Number(item.rate)
-      //     : Number(
-      //         expenseRates[
-      //           [
-      //             ...new Set(payments.map(({ currency }) => Number(currency))),
-      //           ].indexOf(item.currency)
-      //         ]?.rate || 1
-      //       )
-      // ),
+      invoiceCurrencyAmounts_ul: payments?.map((item) =>
+        math.mul(
+          item.rate && Number(item.rate) > 0
+            ? Number(item.rate)
+            : Number(
+                expenseRates[
+                  [
+                    ...new Set(
+                      payments.map(({ currency }) => Number(currency))
+                    ),
+                  ].indexOf(item.currency)
+                ]?.rate || 1
+              ),
+          item.paymentAmount
+        )
+      ),
       isTax: false,
     };
     createOperationInvoice(data).then((res) => {
@@ -5132,19 +5712,22 @@ const Sale = ({ navigation, route }) => {
       cashboxes_ul: vatPayments?.map((item) => item.cashboxId) || [
         vatPaymentAccount,
       ],
-      // rates_ul: vatPayments?.map((item) =>
-      //   item.rate && Number(item.rate) > 0
-      //     ? Number(item.rate)
-      //     : Number(
-      //         vatExpenseRates[
-      //           [
-      //             ...new Set(
-      //               vatPayments.map(({ currency }) => Number(currency))
-      //             ),
-      //           ].indexOf(item.currency)
-      //         ]?.rate || 1
-      //       )
-      // ),
+      invoiceCurrencyAmounts_ul: vatPayments?.map((item) =>
+        math.mul(
+          item.rate && Number(item.rate) > 0
+            ? Number(item.rate)
+            : Number(
+                vatExpenseRates[
+                  [
+                    ...new Set(
+                      vatPayments.map(({ currency }) => Number(currency))
+                    ),
+                  ].indexOf(item.currency)
+                ]?.rate || 1
+              ),
+          item.paymentAmount
+        )
+      ),
       isTax: true,
     };
     createOperationInvoice(data).then((res) => {
@@ -5435,9 +6018,9 @@ const Sale = ({ navigation, route }) => {
       })
         .then((res) => {
           if (payments.length > 0 && isSelected) {
-            handleInvoicePayment(operationDate, Number(res?.id));
+            handleInvoicePayment(operationDate, Number(id));
           } else if (vatPayments.length > 0 && isVatSelected) {
-            handleVatPayment(operationDate, Number(res?.id));
+            handleVatPayment(operationDate, Number(id));
           } else {
             Toast.show({
               type: "success",
@@ -5495,13 +6078,13 @@ const Sale = ({ navigation, route }) => {
     if (selectedProducts.length === 0) {
       Toast.show({
         type: "error",
-        text2: "Qaimədə məhsul mövcud deyil",
+        text1: "Qaimədə məhsul mövcud deyil",
         topOffset: 50,
       });
     } else if (Number(endPrice) < 0) {
       Toast.show({
         type: "error",
-        text2: "Son qiymət 0.00 məbləğindən az ola bilməz.",
+        text1: "Son qiymət 0.00 məbləğindən az ola bilməz.",
         topOffset: 50,
       });
     } else if (
@@ -5611,6 +6194,9 @@ const Sale = ({ navigation, route }) => {
             id={id}
             invoiceInfo={invoiceInfo}
             editDate={editDate}
+            settingsData={settingsData}
+            setSettingsData={setSettingsData}
+            setCashBoxIsDisabled={setCashBoxIsDisabled}
           />
         );
       case "second":
@@ -5644,6 +6230,10 @@ const Sale = ({ navigation, route }) => {
             id={id}
             invoiceInfo={invoiceInfo}
             editDate={editDate}
+            userSettings={userSettings}
+            sales_price={sales_price}
+            sales_invoice={sales_invoice}
+            sales_discount={sales_discount}
           />
         );
       case "third":
@@ -5681,6 +6271,9 @@ const Sale = ({ navigation, route }) => {
             id={id}
             invoiceInfo={invoiceInfo}
             editDate={editDate}
+            settingsData={settingsData}
+            setSettingsData={setSettingsData}
+            cashBoxIsDisabled={cashBoxIsDisabled}
           />
         );
       default:
@@ -5782,6 +6375,12 @@ const styles = StyleSheet.create({
   buttonClose: {
     backgroundColor: "#2196F3",
   },
+  buttonModal: {
+    position: "absolute",
+    borderRadius: 20,
+    padding: 10,
+    right: 0,
+  },
   footer: {
     display: "flex",
     flexDirection: "row",
@@ -5797,6 +6396,9 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     marginHorizontal: 5,
     borderRadius: 10,
+  },
+  disabledInputContainer: {
+    backgroundColor: "#ececec",
   },
   prefix: {
     paddingHorizontal: 5,

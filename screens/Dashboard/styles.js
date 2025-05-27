@@ -20,7 +20,10 @@ export const Footer = styled(Animatable.View)`
 export const ButtonContainer = styled(RectButton)`
     padding: 5px 5px;
     width: 35px;
-    background-color: rgba(85,171,128,.3686274509803922);
+     background-color: ${(props) =>
+        props.disabled
+          ? '#cecece'
+          : 'rgba(85,171,128,.3686274509803922)'};
     align-items: center;
 `
 export const Label = styled.Text`

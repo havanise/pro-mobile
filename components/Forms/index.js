@@ -38,6 +38,8 @@ const Forms = (props) => {
     const token = await getData("TKN").then((result) => {
       return result;
     });
+    // devcore.prospectsmb.com/v1
+    // core.prospect.az/v1
     const url = fromFinance
       ? `https://devcore.prospectsmb.com/v1/transactions/exportToWord/${row.cashboxTransactionMoneyId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
       : fromContract

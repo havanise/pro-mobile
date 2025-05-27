@@ -26,7 +26,7 @@ import {
 } from "../../components";
 import { useForm } from "react-hook-form";
 import ProDateTimePicker from "../../components/ProDateTimePicker";
-import SweetAlert from "react-native-sweet-alert";
+import { FontAwesome5 } from "@expo/vector-icons";
 import {
   getCurrencies,
   getCounterparties,
@@ -51,8 +51,10 @@ import {
 } from "../../utils";
 import ReceivablesPayables from "./ReceivablesPayables";
 import AdvancePayment from "./AdvancePayment";
-import { map } from "lodash";
+import { map, uniqBy } from "lodash";
 import Dept from "./Dept";
+import { InvoiceAmountOfTransaction } from "./InvoiceAmountOfTransaction";
+import AddInvoice from "./AddInvoice";
 
 const math = require("exact-math");
 const BigNumber = require("bignumber.js");
@@ -96,6 +98,20 @@ const Invoice = ({ navigation, route }) => {
   const [editDate, setEditDate] = useState(undefined);
   const [counterpartyHandled, setCounterpartyHandled] = useState(false);
   const [isLoadInvoiceListByContactId, setIsLoad] = useState(false);
+  const [currentRate, setCurrentRate] = useState(undefined);
+  const [amountChanged, setAmountChanged] = useState(false);
+  const [amountToDelete, setAmountToDelete] = useState(undefined);
+  const [sameCurrencies, setSameCurrencies] = useState(undefined);
+  const [advanceAmount, setAdvanceAmount] = useState(undefined);
+  const [invoiceModal, setInvoiceModal] = useState(false);
+  const [allInvoice, setAllInvoice] = useState([]);
+  const [invoicesAddedFromModal, setInvoicesAddedFromModal] = useState(false);
+  const [selectedInvoices, setSelectedInvoices] = useState([]);
+  const [payOrderedValue, setPayOrderedValue] = useState(0);
+  const [checkList, setCheckList] = useState({
+    checkedListAll: [],
+    ItemsChecked: false,
+  });
   const [paymentAmountWithoutRound, setPaymentAmountWithoutRound] =
     useState(undefined);
   const [invoiceData, setInvoiceData] = useState({
@@ -108,11 +124,6 @@ const Invoice = ({ navigation, route }) => {
     typeOfPayment: 1,
     counterpartyId: undefined,
   });
-  const [routes] = React.useState([
-    { key: "first", title: "Ümumi məlumat" },
-    { key: "second", title: "Qaimə" },
-    { key: "third", title: "Ödəniş" },
-  ]);
 
   const { profile, tenant, BUSINESS_TKN_UNIT } = useContext(TenantContext);
 
@@ -190,16 +201,16 @@ const Invoice = ({ navigation, route }) => {
         ? invoice.map((item) => Number(String(item).split("-")?.[0]))
         : [Number(String(invoice).split("-")?.[0])]; // VAT OR NOT EPIC CHECKOUT
 
-    // const selectedMustPaySum = selectedInvoices?.reduce(
-    //   (total, { remainingInvoiceDebtWithCredit }) =>
-    //     math.add(total, Number(remainingInvoiceDebtWithCredit) || 0),
-    //   0
-    // );
+    const selectedMustPaySum = selectedInvoices?.reduce(
+      (total, { remainingInvoiceDebtWithCredit }) =>
+        math.add(total, Number(remainingInvoiceDebtWithCredit) || 0),
+      0
+    );
 
-    // const difference = math.sub(
-    //   Number(payOrderedValue ?? 0),
-    //   selectedMustPaySum
-    // );
+    const difference = math.sub(
+      Number(payOrderedValue ?? 0),
+      selectedMustPaySum
+    );
 
     const sendData = {
       type: useAdvance ? null : invoiceData.typeOfOperation,
@@ -211,8 +222,29 @@ const Invoice = ({ navigation, route }) => {
       description,
       useAdvance,
       invoices_ul: editId || [],
-      amounts_ul: [Number(paymentAmount)],
-      currencies_ul: [currency],
+      invoiceCurrencyAmounts_ul: invoicesAddedFromModal
+        ? selectedInvoices?.length > 1
+          ? selectedInvoices.map(({ id, mustPay, mustVatPay }) =>
+              String(id).split("-")?.length > 1
+                ? Number(mustVatPay ?? 0) || Number(mustPay)
+                : Number(mustPay)
+            )
+          : Number(paymentAmount ?? 0)
+          ? [Number(paymentAmount)]
+          : [Number(amountToDelete)]
+        : [Number(amountToDelete)],
+      amounts_ul:
+        selectedInvoices?.length > 1
+          ? selectedInvoices.map(({ id, mustPay, mustVatPay }) =>
+              String(id).split("-")?.length > 1
+                ? Number(mustVatPay ?? 0) || Number(mustPay)
+                : Number(mustPay)
+            )
+          : Number(paymentAmount ?? 0),
+      currencies_ul:
+        selectedInvoices?.length > 1
+          ? selectedInvoices.map((item) => currency)
+          : [currency],
       isTax_ul:
         Array.isArray(invoice) && invoice.length > 0
           ? map(invoice, (item) => String(item).split("-")?.length > 1)
@@ -237,36 +269,54 @@ const Invoice = ({ navigation, route }) => {
     };
     if (
       !useBalance &&
-      // (selectedInvoices?.length < 2 ||
-      //   (selectedInvoices?.length > 1 &&
-      //     payOrderedValue > 0 &&
-      //     difference > 0)) &&
+      advanceAmount > 0 &&
+      (selectedInvoices?.length < 2 ||
+        (selectedInvoices?.length > 1 &&
+          payOrderedValue > 0 &&
+          difference > 0)) &&
       Number(paymentAmount) >
         roundToDown(
           Number(
             invoiceData.invoice?.creditId
-              ? invoiceData.invoice?.remainingInvoiceDebtWithCredit
+              ? editId &&
+                operationList?.length > 0 &&
+                operationList[0].invoiceId === getValues("invoice")
+                ? math.add(
+                    Number(
+                      invoiceData.invoice?.remainingInvoiceDebtWithCredit || 0
+                    ),
+                    Number(
+                      operationList[0]
+                        ?.invoicePaymentAmountConvertedToInvoiceCurrency || 0
+                    )
+                  )
+                : invoiceData.invoice?.remainingInvoiceDebtWithCredit
+              : editId &&
+                operationList?.length > 0 &&
+                (isQueryVat
+                  ? operationList[0].invoiceId ==
+                    getValues("invoice")?.split("-")?.[0]
+                  : operationList[0].invoiceId == getValues("invoice"))
+              ? math.add(
+                  Number(invoiceData.invoice?.debtAmount || 0),
+                  Number(
+                    operationList[0]
+                      ?.invoicePaymentAmountConvertedToInvoiceCurrency || 0
+                  )
+                )
               : invoiceData.invoice?.debtAmount
-          ) / Number(invoiceData.rate),
-          2
+          ) / Number(invoiceData.rate)
         )
     ) {
       Alert.alert(
         "Diqqət!",
         `Bu ödəniş nəticəsində ${roundToUp(
-          // payOrderedValue
-          //   ? Number(difference)
-          //   :
-          math.sub(
-            Number(paymentAmount),
-            Number(
-              invoiceData.invoice?.creditId
-                ? invoiceData.invoice?.remainingInvoiceDebtWithCredit
-                : invoiceData.invoice?.debtAmount
-            ) / Number(invoiceData.rate)
-          ),
+          payOrderedValue ? Number(difference) : Number(advanceAmount),
           4
-        )}${invoiceData.currency.code} avans məbləğ formalaşacaqdır!`,
+        )}${
+          invoiceData.invoice?.currencyCode ||
+          selectedInvoices?.[0]?.currencyCode
+        } avans məbləğ formalaşacaqdır!`,
         [
           {
             text: "İMTİNA",
@@ -286,7 +336,6 @@ const Invoice = ({ navigation, route }) => {
                     navigation.push("DashboardTabs");
                   })
                   .catch((error) => {
-                    console.log(error, "errr");
                     const errData = error?.response?.data?.error?.errorData;
                     const errKey = error?.response?.data?.error?.errors;
 
@@ -350,7 +399,6 @@ const Invoice = ({ navigation, route }) => {
                     navigation.push("DashboardTabs");
                   })
                   .catch((error) => {
-                    console.log(error, "errr");
                     const errData = error?.response?.data?.error?.errorData;
                     const errKey = error?.response?.data?.error?.errors;
 
@@ -420,7 +468,6 @@ const Invoice = ({ navigation, route }) => {
             navigation.push("DashboardTabs");
           })
           .catch((error) => {
-            console.log(error, "errr");
             const errData = error?.response?.data?.error?.errorData;
             const errKey = error?.response?.data?.error?.errors;
 
@@ -483,7 +530,6 @@ const Invoice = ({ navigation, route }) => {
             navigation.push("DashboardTabs");
           })
           .catch((error) => {
-            console.log(error, "errr");
             const errData = error?.response?.data?.error?.errorData;
             const errKey = error?.response?.data?.error?.errors;
 
@@ -545,7 +591,10 @@ const Invoice = ({ navigation, route }) => {
       setTimeout(() => {
         setLoaderConvert(false);
       }, 1000);
-    } else if (invoiceData.invoice?.id && invoiceData.currency?.id) {
+    } else if (
+      (invoiceData.invoice?.id || (!id && selectedInvoices?.length > 0)) &&
+      invoiceData.currency?.id
+    ) {
       const {
         debtAmount,
         currencyId,
@@ -591,53 +640,14 @@ const Invoice = ({ navigation, route }) => {
             });
           }
         });
-      }
-      // else if (useBalance) {
-      //   const fieldName = paymentDirection[invoiceData.typeOfOperation];
-      //   const selectedBalance = balancePayment[fieldName].filter(
-      //     (advance) => advance.currencyId === invoiceData.currency.id
-      //   )[0];
-      //   convertCurrency(
-      //     Number(selectedBalance?.amount || 0),
-      //     invoiceData.currency.id,
-      //     currencyId,
-      //     ({ data }) => {
-      //       const covertingAmount =
-      //         creditId !== null
-      //           ? Number(remainingInvoiceDebtWithCredit) > Number(data.amount)
-      //             ? Number(data.amount)
-      //             : Number(remainingInvoiceDebtWithCredit)
-      //           : Number(debtAmount) > Number(data.amount)
-      //           ? Number(data.amount)
-      //           : Number(debtAmount);
-      //       convertCurrency(
-      //         covertingAmount,
-      //         currencyId,
-      //         invoiceData.currency.id,
-      //         ({ data }) => {
-      //           if (!invoiceData.edit) {
-      //             setInvoiceData((prevData) => ({
-      //               ...prevData,
-      //               rate: 1 / data.rate,
-      //             }));
-      //             setPaymentAmountWithoutRound(data.amount);
-      //             setFieldsValue({
-      //               paymentAmount: customRound(data.amount, 1, 2),
-      //             });
-      //           }
-      //         }
-      //       );
-      //     }
-      //   );
-      // }
-      else {
+      } else {
         setConvertLoading(true);
         convertCurrency({
           amount:
             creditId !== null
               ? remainingInvoiceDebtWithCredit || 1
               : debtAmount || 1,
-          fromCurrencyId: currencyId,
+          fromCurrencyId: currencyId || selectedInvoices?.[0]?.currencyId,
           toCurrencyId: invoiceData.currency.id,
           dateTime: moment().format(fullDateTimeWithSecond),
         }).then((data) => {
@@ -647,31 +657,56 @@ const Invoice = ({ navigation, route }) => {
               ...prevData,
               rate: 1 / data.rate,
             }));
-            setPaymentAmountWithoutRound(
-              customRoundWithBigNumber(
-                Number(
-                  creditId !== null
-                    ? remainingInvoiceDebtWithCredit || 0
-                    : debtAmount || 0
-                ),
-                Number(data.rate || 0)
-              )
-            );
-            setValue(
-              "paymentAmount",
-              `${roundToDown(
-                customRound(
-                  Number(
-                    creditId !== null
-                      ? remainingInvoiceDebtWithCredit || 0
-                      : debtAmount || 0
-                  ),
-                  data.rate,
-                  2
-                ),
+
+            const paymentAmount = roundToDown(
+              customRound(
+                selectedInvoices
+                  ?.map((item) => item.id)
+                  .includes(invoiceData.invoice?.id) ||
+                  selectedInvoices
+                    ?.map((item) => item.id)
+                    .includes(`${invoiceData.invoice?.id}-vat`)
+                  ? Number(
+                      uniqBy(selectedInvoices, "invoiceNumber").reduce(
+                        (total, row) =>
+                          math.add(
+                            total,
+                            Number(
+                              row?.mustPay ||
+                                Number(
+                                  creditId !== null
+                                    ? remainingInvoiceDebtWithCredit || 0
+                                    : debtAmount || 0
+                                )
+                            ) || 0
+                          ),
+                        0
+                      ) || 0
+                    )
+                  : math.add(
+                      Number(
+                        creditId !== null
+                          ? remainingInvoiceDebtWithCredit || 0
+                          : debtAmount || 0
+                      ) || 0,
+                      Number(
+                        uniqBy(selectedInvoices, "invoiceNumber")?.reduce(
+                          (total, { mustPay, mustVatPay }) =>
+                            math.add(total, Number(mustPay) || 0),
+                          0
+                        ) || 0
+                      )
+                    ),
+                data.rate,
                 2
-              )}`
+              ),
+              2
             );
+
+            setPaymentAmountWithoutRound(
+              customRoundWithBigNumber(paymentAmount, Number(data.rate || 0))
+            );
+            setValue("paymentAmount", `${paymentAmount}`);
           }
         });
       }
@@ -681,6 +716,7 @@ const Invoice = ({ navigation, route }) => {
     invoiceData.currency,
     useAdvance,
     loaderConvert,
+    selectedInvoices,
     useBalance,
   ]);
 
@@ -712,6 +748,13 @@ const Invoice = ({ navigation, route }) => {
   }, [invoiceData.typeOfPayment]);
 
   useEffect(() => {
+    setSameCurrencies(
+      invoiceData.invoice?.currencyId === getValues("currency") ||
+        selectedInvoices?.[0]?.currencyId === getValues("currency")
+    );
+  }, [invoiceData, selectedInvoices, getValues("currency")]);
+
+  useEffect(() => {
     if (id && operationList?.length > 0 && useBalance) {
       setValue(
         "employeeBalance",
@@ -721,6 +764,19 @@ const Invoice = ({ navigation, route }) => {
       );
     }
   }, [id, operationList, useBalance]);
+
+  useEffect(() => {
+    if (!id && !invoiceModal && checkList.checkedListAll?.length > 0) {
+      if (checkList.checkedListAll?.length === 1) {
+        setValue("invoice", checkList.checkedListAll[0]?.id);
+      } else {
+        setValue(
+          "invoice",
+          map(checkList.checkedListAll, (item) => item?.id)
+        );
+      }
+    }
+  }, [invoiceModal]);
 
   useEffect(() => {
     if (id && operationList) {
@@ -733,28 +789,6 @@ const Invoice = ({ navigation, route }) => {
 
   useEffect(() => {
     if (id && operationList?.length > 0) {
-      // if (operationList[0]?.employeeId) {
-      //   fetchTenantBalance(
-      //     operationsList[0]?.employeeId,
-      //     {
-      //       businessUnitIds: editId
-      //         ? operationsList[0]?.businessUnitId === null
-      //           ? [0]
-      //           : [operationsList[0]?.businessUnitId]
-      //         : BUSINESS_TKN_UNIT
-      //         ? [BUSINESS_TKN_UNIT]
-      //         : undefined,
-      //       dateTime: getValues("operationDate")?.format(
-      //         fullDateTimeWithSecond
-      //       ),
-      //       notCashboxTransactionIds: editId
-      //         ? [operationsList[0]?.cashboxTransactionId]
-      //         : [],
-      //     },
-      //     fetchBalancePaymentCallback
-      //   );
-      // }
-
       setEditDate(
         moment(
           operationList?.[0].dateOfTransaction,
@@ -835,7 +869,7 @@ const Invoice = ({ navigation, route }) => {
           : currencies[0].id
       );
     }
-  }, [currencies]);
+  }, [currencies, operationList]);
 
   const updateReceivablesPayables = (invoices) => {
     let receivablesTemp = {};
@@ -880,9 +914,7 @@ const Invoice = ({ navigation, route }) => {
   });
 
   const handleOperationTypeChange = (operationType, invoicesList, edit) => {
-    setUseAdvance(
-      edit ? operationList[0]?.isAdvance : false
-    );
+    setUseAdvance(edit ? operationList[0]?.isAdvance : false);
     if ((!edit && operationType == 1) || checkedAdvance !== "balance") {
       setUseBalance(false);
     }
@@ -1001,6 +1033,17 @@ const Invoice = ({ navigation, route }) => {
     ).find((invoice) => invoice.id === selectedInvoiceId);
 
     if (
+      selectedInvoice &&
+      !("mustPay" in selectedInvoice || "mustVatPay" in selectedInvoice)
+    ) {
+      const { remainingInvoiceDebtWithCredit = 0, isTax } = selectedInvoice;
+      const amount = Number(remainingInvoiceDebtWithCredit);
+
+      selectedInvoice[isTax ? "mustVatPay" : "mustPay"] = amount;
+    }
+
+    setSelectedInvoices([selectedInvoice]);
+    if (
       moment(getValues("dateOfTransaction"))?.isBefore(
         moment(selectedInvoice?.operationDate, fullDateTimeWithSecond)
       )
@@ -1009,9 +1052,21 @@ const Invoice = ({ navigation, route }) => {
         "dateOfTransaction",
         moment(selectedInvoice?.operationDate, fullDateTimeWithSecond)
       );
-      setValue("currency", selectedInvoice?.currencyId);
+      setValue(
+        "currency",
+        edit
+          ? currencies?.find(({ id }) => id === operationList[0]?.currencyId)
+              ?.id
+          : selectedInvoice?.currencyId
+      );
     } else {
-      setValue("currency", selectedInvoice?.currencyId);
+      setValue(
+        "currency",
+        edit
+          ? currencies?.find(({ id }) => id === operationList[0]?.currencyId)
+              ?.id
+          : selectedInvoice?.currencyId
+      );
     }
 
     if (!selectedInvoice?.isTax) {
@@ -1218,6 +1273,7 @@ const Invoice = ({ navigation, route }) => {
                 ).length === 0))
               ? {
                   id: operationsList[0].invoiceId,
+                  value: operationsList[0].invoiceId,
                   label: operationsList[0].invoiceNumber,
                   invoiceType: operationsList[0].invoiceType,
                   invoiceNumber: operationsList[0].invoiceNumber,
@@ -1247,6 +1303,7 @@ const Invoice = ({ navigation, route }) => {
                 return {
                   ...currentInvoice,
                   id: `${currentInvoice.id}-vat`,
+                  value: `${currentInvoice.id}-vat`,
                   invoiceNumber: `${currentInvoice.invoiceNumber}(VAT)`,
                   label: `${currentInvoice.label}(VAT)`,
                   debtAmount: Number(currentInvoice.remainingInvoiceDebt),
@@ -1256,6 +1313,7 @@ const Invoice = ({ navigation, route }) => {
               return {
                 ...currentInvoice,
                 debtAmount: Number(currentInvoice.remainingInvoiceDebt),
+                value: currentInvoice.id,
               };
             }, [])
         : [];
@@ -1282,8 +1340,53 @@ const Invoice = ({ navigation, route }) => {
     }
   }, [checked, getValues("paymentAmount")]);
 
+  const handleCurrencyChange = (selectedCurrencyId) => {
+    const selectedCurrency = currencies.filter(
+      (currency) => currency.id === selectedCurrencyId
+    )[0];
+    if (selectedCurrency) {
+      setCurrentRate(selectedCurrency.rate);
+    }
+    setInvoiceData({
+      ...invoiceData,
+      currency: selectedCurrency,
+      edit: false,
+    });
+  };
+
   return (
     <SafeAreaProvider>
+      {invoiceModal && (
+        <AddInvoice
+          setAllInvoice={setAllInvoice}
+          allInvoice={allInvoice}
+          selectedBusinessUnit={BUSINESS_TKN_UNIT}
+          modalbusnessUnitId={BUSINESS_TKN_UNIT}
+          isVisible={invoiceModal}
+          setIsVisible={setInvoiceModal}
+          counterparty={getValues("counterparty")}
+          selectedInvoices={selectedInvoices}
+          setSelectedInvoices={setSelectedInvoices}
+          editId={id}
+          type={invoiceData.typeOfOperation}
+          checkList={checkList}
+          setCheckList={setCheckList}
+          invoices={invoices}
+          operationsList={operationList}
+          // mainCurrency={mainCurrency}
+          paymentAmount={getValues("paymentAmount")}
+          Voices={Voices}
+          invoiceData={invoiceData}
+          setInvoiceData={setInvoiceData}
+          setFieldsValue={setValue}
+          currencies={currencies}
+          setUseAdvance={setUseAdvance}
+          setPaymentAmountWithoutRound={setPaymentAmountWithoutRound}
+          payOrderedValue={payOrderedValue}
+          setPayOrderedValue={setPayOrderedValue}
+          setInvoicesAddedFromModal={setInvoicesAddedFromModal}
+        />
+      )}
       <ScrollView>
         <View
           style={{
@@ -1299,7 +1402,7 @@ const Invoice = ({ navigation, route }) => {
             </ProText>
           )}
           <ProText variant="heading" style={{ color: "black" }}>
-          {id ? "Düzəliş et" : "Yeni əməliyyat"}
+            {id ? "Düzəliş et" : "Yeni əməliyyat"}
           </ProText>
           <Text style={{ fontSize: 18 }}>Qaimə</Text>
 
@@ -1316,7 +1419,18 @@ const Invoice = ({ navigation, route }) => {
           >
             <ProAsyncSelect
               label="Qarşı tərəf"
-              data={counterparties}
+              data={
+                id
+                  ? [
+                      {
+                        label: operationList?.[0].contactOrEmployee,
+                        value: operationList?.[0].contactId,
+                        id: operationList?.[0].contactId,
+                      },
+                      ...counterparties,
+                    ]
+                  : counterparties
+              }
               setData={setCounterparties}
               fetchData={getCounterparties}
               async
@@ -1421,25 +1535,6 @@ const Invoice = ({ navigation, route }) => {
                     // handleCounterpartyChange(account);
                   }}
                 />
-                {/* <View style={{ margin: "15px 0" }}>
-                  <AdvancePayment
-                    title="Təhtəl hesabdan ödə"
-                    subTitle="Balans:"
-                    advancePayment={balancePayment}
-                    checked={useBalance}
-                    onChange={handleBalanceChange}
-                    disabled={
-                      !getValues("employeeBalance") ||
-                      !getValues("invoice") ||
-                      balancePayment.myAmount?.filter(
-                        (currencyBalance) => Number(currencyBalance.amount) > 0
-                      ).length === 0 ||
-                      // selectedInvoices?.length > 1 ||
-                      invoiceData.typeOfOperation === 1
-                    }
-                    // loading={tenantBalanceLoading}
-                  />
-                </View> */}
               </>
             )}
             <View>
@@ -1502,24 +1597,64 @@ const Invoice = ({ navigation, route }) => {
                 />
               </View>
             </View>
-            <ProAsyncSelect
-              label="Qaimə"
-              data={Voices}
-              setData={() => {}}
-              fetchData={() => {}}
-              async={false}
-              filter={{}}
-              required
-              control={control}
-              allowClear={false}
-              name="invoice"
-              handleSelectValue={(id) => {
-                handleSelectInvoice(id, invoices, invoiceData.typeOfOperation);
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                gap: 8,
+                alignItems: "flex-start",
               }}
-            />
-            {invoiceData.invoice?.id && (
+            >
+              <ProAsyncSelect
+                label="Qaimə"
+                width="80%"
+                disabled={
+                  !getValues("counterparty") || selectedInvoices?.length > 1
+                }
+                data={Voices}
+                setData={() => {}}
+                fetchData={() => {}}
+                async={false}
+                filter={{}}
+                required
+                control={control}
+                allowClear={false}
+                name="invoice"
+                defaultValue={
+                  selectedInvoices?.length > 1 ? getValues("invoice") : false
+                }
+                handleSelectValue={(id) => {
+                  handleSelectInvoice(
+                    id,
+                    invoices,
+                    invoiceData.typeOfOperation
+                  );
+                }}
+                isMulti={selectedInvoices?.length > 1 ? true : false}
+              />
+              <View style={{ marginTop: 28 }}>
+                <ProButton
+                  label={
+                    <FontAwesome5
+                      name="list-alt"
+                      size={48}
+                      color={!watch("counterparty") ? "grey" : "#55ab80"}
+                    />
+                  }
+                  style={{ width: "15%", borderWidth: 1 }}
+                  type="transparent"
+                  disabled={!getValues("counterparty")}
+                  padding={"0px"}
+                  onClick={() => setInvoiceModal(true)}
+                />
+              </View>
+            </View>
+            {(invoiceData.invoice?.id || selectedInvoices?.length > 0) && (
               <Dept
-                currency={invoiceData.invoice?.currencyCode}
+                currency={
+                  invoiceData.invoice?.currencyCode ||
+                  selectedInvoices?.[0]?.currencyCode
+                }
                 value={
                   (invoiceData.invoice?.creditId &&
                   invoiceData.invoice?.creditId !== null
@@ -1541,7 +1676,22 @@ const Invoice = ({ navigation, route }) => {
                               0
                           )
                         )
-                      : Number(invoiceData.invoice?.mustPay || 0)
+                      : math.add(
+                          Number(invoiceData.invoice?.mustPay || 0),
+                          selectedInvoices
+                            ?.filter(
+                              (item) =>
+                                item?.id !== invoiceData.invoice?.id &&
+                                item?.id &&
+                                item.id !== `${invoiceData.invoice?.id}-vat`
+                            )
+                            .reduce((total_amount, row) => {
+                              return math.add(
+                                total_amount,
+                                Number(row?.remainingInvoiceDebtWithCredit) || 0
+                              );
+                            }, 0)
+                        )
                     : id &&
                       operationList?.length > 0 &&
                       ((operationList[0].transactionType !== 10 &&
@@ -1558,7 +1708,21 @@ const Invoice = ({ navigation, route }) => {
                             0
                         )
                       )
-                    : Number(invoiceData.invoice?.debtAmount || 0)) ||
+                    : math.add(
+                        Number(invoiceData.invoice?.debtAmount || 0),
+                        selectedInvoices
+                          ?.filter(
+                            (item) =>
+                              item?.id !== invoiceData.invoice?.id &&
+                              item.id !== `${invoiceData.invoice?.id}-vat`
+                          )
+                          .reduce((total_amount, row) => {
+                            return math.add(
+                              total_amount,
+                              Number(row?.remainingInvoiceDebtWithCredit) || 0
+                            );
+                          }, 0)
+                      )) ||
                   (invoiceData.invoice?.creditId &&
                   invoiceData.invoice?.creditId !== null
                     ? id &&
@@ -1579,9 +1743,30 @@ const Invoice = ({ navigation, route }) => {
                               0
                           )
                         )
-                      : Number(
-                          invoiceData.invoice
-                            ?.remainingInvoiceVatDebtWithCredit || 0
+                      : math.add(
+                          Number(
+                            invoiceData.invoice
+                              ?.remainingInvoiceVatDebtWithCredit || 0
+                          ),
+                          selectedInvoices
+                            ?.filter(
+                              (item) =>
+                                item?.id !== invoiceData.invoice?.id &&
+                                item?.id &&
+                                item?.id?.toString().includes("vat") &&
+                                item.id !== `${invoiceData.invoice?.id}-vat`
+                            )
+                            .reduce(
+                              (
+                                total_amount,
+                                { remainingInvoiceVatDebtWithCredit }
+                              ) =>
+                                math.add(
+                                  total_amount,
+                                  Number(remainingInvoiceVatDebtWithCredit) || 0
+                                ),
+                              0
+                            )
                         )
                     : id &&
                       operationList?.length > 0 &&
@@ -1599,7 +1784,27 @@ const Invoice = ({ navigation, route }) => {
                             0
                         )
                       )
-                    : Number(invoiceData.invoice?.debtVatAmount || 0))
+                    : math.add(
+                        Number(invoiceData.invoice?.debtVatAmount || 0),
+                        selectedInvoices
+                          ?.filter(
+                            (item) =>
+                              item?.id !== invoiceData.invoice?.id &&
+                              item?.id?.toString().includes("vat") &&
+                              item.id !== `${invoiceData.invoice?.id}-vat`
+                          )
+                          .reduce(
+                            (
+                              total_amount,
+                              { remainingInvoiceVatDebtWithCredit }
+                            ) =>
+                              math.add(
+                                total_amount,
+                                Number(remainingInvoiceVatDebtWithCredit) || 0
+                              ),
+                            0
+                          )
+                      ))
                 }
               />
             )}
@@ -1620,6 +1825,7 @@ const Invoice = ({ navigation, route }) => {
                 handleChange={(val) => {
                   setValue("amount", `${val}`);
                 }}
+                disabled={selectedInvoices?.length > 1}
               />
               <ProAsyncSelect
                 label="Valyuta"
@@ -1633,8 +1839,186 @@ const Invoice = ({ navigation, route }) => {
                 allowClear={false}
                 name="currency"
                 width="27%"
+                handleSelectValue={(id) => {
+                  handleCurrencyChange(id);
+                }}
               />
             </View>
+            <InvoiceAmountOfTransaction
+              amount={
+                id && amountChanged === false
+                  ? operationList[0]
+                      ?.invoicePaymentAmountConvertedToInvoiceCurrency
+                  : watch("paymentAmount")
+              }
+              convertLoading={convertLoading}
+              invoiceData={invoiceData}
+              setInvoiceData={setInvoiceData}
+              amountToDelete={`${amountToDelete}`}
+              setAmountToDelete={setAmountToDelete}
+              currentRate={currentRate}
+              setAmountChanged={setAmountChanged}
+              sameCurrencies={sameCurrencies}
+              amountChanged={amountChanged}
+              selectedCurrency={
+                currencies.filter(
+                  (currency) => currency.id === getValues("currency")
+                )[0]
+              }
+              advanceAmount={advanceAmount}
+              setAdvanceAmount={setAdvanceAmount}
+              setFieldsValue={setValue}
+              editId={id}
+              debt={
+                (invoiceData.invoice?.creditId &&
+                invoiceData.invoice?.creditId !== null
+                  ? id &&
+                    operationList?.length > 0 &&
+                    ((operationList[0].transactionType !== 10 &&
+                      operationList[0].invoiceId === getValues("invoice")) ||
+                      (invoiceData.invoice?.isTax &&
+                        `${operationList[0]?.invoiceId}-vat` ===
+                          getValues("invoice")))
+                    ? math.add(
+                        Number(
+                          invoiceData.invoice?.remainingInvoiceDebtWithCredit ||
+                            0
+                        ),
+                        Number(
+                          operationList[0]
+                            ?.invoicePaymentAmountConvertedToInvoiceCurrency ||
+                            0
+                        )
+                      )
+                    : math.add(
+                        Number(invoiceData.invoice?.mustPay || 0),
+                        selectedInvoices
+                          ?.filter(
+                            (item) =>
+                              item?.id !== invoiceData.invoice?.id &&
+                              item?.id &&
+                              item.id !== `${invoiceData.invoice?.id}-vat`
+                          )
+                          .reduce((total_amount, row) => {
+                            return math.add(
+                              total_amount,
+                              Number(row?.remainingInvoiceDebtWithCredit) || 0
+                            );
+                          }, 0)
+                      )
+                  : id &&
+                    operationList?.length > 0 &&
+                    ((operationList[0].transactionType !== 10 &&
+                      operationList[0].invoiceId === getValues("invoice")) ||
+                      (invoiceData.invoice?.isTax &&
+                        isQueryVat &&
+                        `${operationList[0]?.invoiceId}-vat` ===
+                          getValues("invoice")))
+                  ? math.add(
+                      Number(invoiceData.invoice?.debtAmount || 0),
+                      Number(
+                        operationList[0]
+                          ?.invoicePaymentAmountConvertedToInvoiceCurrency || 0
+                      )
+                    )
+                  : math.add(
+                      Number(invoiceData.invoice?.debtAmount || 0),
+                      selectedInvoices
+                        ?.filter(
+                          (item) =>
+                            item?.id !== invoiceData.invoice?.id &&
+                            item.id !== `${invoiceData.invoice?.id}-vat`
+                        )
+                        .reduce((total_amount, row) => {
+                          return math.add(
+                            total_amount,
+                            Number(row?.remainingInvoiceDebtWithCredit) || 0
+                          );
+                        }, 0)
+                    )) ||
+                (invoiceData.invoice?.creditId &&
+                invoiceData.invoice?.creditId !== null
+                  ? id &&
+                    operationList?.length > 0 &&
+                    ((operationList[0].transactionType !== 10 &&
+                      operationList[0].invoiceId === getValues("invoice")) ||
+                      (invoiceData.invoice?.isTax &&
+                        `${operationList[0]?.invoiceId}-vat` ===
+                          getValues("invoice")))
+                    ? math.add(
+                        Number(
+                          invoiceData.invoice
+                            ?.remainingInvoiceVatDebtWithCredit || 0
+                        ),
+                        Number(
+                          operationList[0]
+                            ?.invoicePaymentAmountConvertedToInvoiceCurrency ||
+                            0
+                        )
+                      )
+                    : math.add(
+                        Number(
+                          invoiceData.invoice
+                            ?.remainingInvoiceVatDebtWithCredit || 0
+                        ),
+                        selectedInvoices
+                          ?.filter(
+                            (item) =>
+                              item?.id !== invoiceData.invoice?.id &&
+                              item?.id &&
+                              item?.id?.toString().includes("vat") &&
+                              item.id !== `${invoiceData.invoice?.id}-vat`
+                          )
+                          .reduce(
+                            (
+                              total_amount,
+                              { remainingInvoiceVatDebtWithCredit }
+                            ) =>
+                              math.add(
+                                total_amount,
+                                Number(remainingInvoiceVatDebtWithCredit) || 0
+                              ),
+                            0
+                          )
+                      )
+                  : id &&
+                    operationList?.length > 0 &&
+                    ((operationList[0].transactionType !== 10 &&
+                      operationList[0].invoiceId === getValues("invoice")) ||
+                      (invoiceData.invoice?.isTax &&
+                        isQueryVat &&
+                        `${operationList[0]?.invoiceId}-vat` ===
+                          getValues("invoice")))
+                  ? math.add(
+                      Number(invoiceData.invoice?.debtVatAmount || 0),
+                      Number(
+                        operationList[0]
+                          ?.invoicePaymentAmountConvertedToInvoiceCurrency || 0
+                      )
+                    )
+                  : math.add(
+                      Number(invoiceData.invoice?.debtVatAmount || 0),
+                      selectedInvoices
+                        ?.filter(
+                          (item) =>
+                            item?.id !== invoiceData.invoice?.id &&
+                            item?.id?.toString().includes("vat") &&
+                            item.id !== `${invoiceData.invoice?.id}-vat`
+                        )
+                        .reduce(
+                          (
+                            total_amount,
+                            { remainingInvoiceVatDebtWithCredit }
+                          ) =>
+                            math.add(
+                              total_amount,
+                              Number(remainingInvoiceVatDebtWithCredit) || 0
+                            ),
+                          0
+                        )
+                    ))
+              }
+            />
             <PaymentType
               disabled={useAdvance || checkedAdvance === "balance"}
               changeTypeOfPayment={changeTypeOfPayment}
@@ -1666,7 +2050,9 @@ const Invoice = ({ navigation, route }) => {
                 ),
                 applyBusinessUnitTenantPersonFilter: 1,
               }}
-              required={useAdvance || checkedAdvance === "balance" ? false : true}
+              required={
+                useAdvance || checkedAdvance === "balance" ? false : true
+              }
               disabled={useAdvance || checkedAdvance === "balance"}
               control={control}
               allowClear={false}

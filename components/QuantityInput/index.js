@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Tooltip } from "@rneui/themed";
 import { AntDesign } from "@expo/vector-icons";
 import ProTooltip from "../ProTooltip";
 import { Text, TextInput, View } from "react-native";
@@ -52,57 +51,63 @@ const QuantityInput = (props) => {
   };
 
   return (
-    <ProTooltip
-      containerStyle={{ width: 145, height: "auto" }}
-      popover={
-        <Text>
-          Məhsuldan istifadə olunduğu üçün say minimum{" "}
-          {selectedProduct?.[0]?.usedQuantity} olaraq dəyişdirilə bilər.
-        </Text>
-      }
-      visible={Number(value || 0) < selectedProduct?.[0]?.usedQuantity}
+    // <ProTooltip
+    //   containerStyle={{ width: 145, height: "auto" }}
+    //   popover={
+    //     <Text>
+    //       Məhsuldan istifadə olunduğu üçün say minimum{" "}
+    //       {selectedProduct?.[0]?.usedQuantity} olaraq dəyişdirilə bilər.
+    //     </Text>
+    //   }
+    //   isVisible={Number(value || 0) < selectedProduct?.[0]?.usedQuantity}
+    //   notDefaultOpen
+    //   trigger={
+
+    //   }
+    // />
+    <View
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+      }}
     >
-      <View
-        style={{ display: "flex", flexDirection: "row", alignItems: 'center' }}
-        //</ProTooltip>className={styles.quantityInput}
-      >
-        <ProButton
-          label={<AntDesign name="minus" size={16} color="#dedede" />}
-          type="transparent"
-          style={{ width: "15%", borderWidth: 1 }}
-          defaultStyle={{ borderRadius: 5 }}
-          flex={false}
-          onClick={decrease}
-          disabled={disabled}
-        />
-        <TextInput
-          value={value}
-          keyboardType="numeric"
-          onChangeText={(event) => {
-            handleChange(event);
-          }}
-          style={{
-            margin: 5,
-            padding: 5,
-            height: '60%',
-            width: '50%',
-            borderWidth: 1,
-            borderRadius: 5,
-            borderColor: "#D0DBEA",
-          }}
-          disabled={disabled}
-        />
-        <ProButton
-          label={<AntDesign name="pluscircleo" size={16} color="#dedede" />}
-          type="transparent"
-          style={{ width: "15%", borderWidth: 1 }}
-          defaultStyle={{ borderRadius: 5 }}
-          flex={false}
-          onClick={increase}
-          disabled={disabled}
-        />
-      </View>
-    </ProTooltip>
+      <ProButton
+        label={<AntDesign name="minus" size={16} color="#dedede" />}
+        type="transparent"
+        style={{ width: "15%", borderWidth: 1 }}
+        defaultStyle={{ borderRadius: 5 }}
+        flex={false}
+        onClick={decrease}
+        disabled={disabled}
+      />
+      <TextInput
+        value={value}
+        keyboardType="numeric"
+        onChangeText={(event) => {
+          handleChange(event);
+        }}
+        style={{
+          margin: 5,
+          padding: 5,
+          height: "60%",
+          width: "50%",
+          borderWidth: 1,
+          borderRadius: 5,
+          borderColor: "#D0DBEA",
+        }}
+        disabled={disabled}
+      />
+      <ProButton
+        label={<AntDesign name="pluscircleo" size={16} color="#dedede" />}
+        type="transparent"
+        style={{ width: "15%", borderWidth: 1 }}
+        defaultStyle={{ borderRadius: 5 }}
+        flex={false}
+        onClick={increase}
+        disabled={disabled}
+      />
+    </View>
   );
 };
 

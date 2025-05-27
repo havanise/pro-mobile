@@ -564,6 +564,29 @@ const FinanceTransfer = ({ navigation, route }) => {
         : undefined,
     });
   }, []);
+  useEffect(() => {
+    if (transferData?.from?.type && id) {
+      fetchAccountBalance({
+        apiEnd: operationList?.find(
+          ({ cashInOrCashOut }) => cashInOrCashOut === -1
+        )?.cashboxId,
+        filters: {
+          dateTime: moment(getValues("operationDate")).format(
+            fullDateTimeWithSecond
+          ),
+        },
+      }).then((data) => {
+        setTransferData((prevData) => ({
+          ...prevData,
+          from: {
+            ...transferData.from,
+            balance: data || [],
+            loading: false,
+          },
+        }));
+      });
+    }
+  }, [transferData?.from?.type]);
 
   useEffect(() => {
     if (transferData?.from?.type) {
@@ -802,8 +825,9 @@ const FinanceTransfer = ({ navigation, route }) => {
         "currency",
         id && operationList
           ? operationList[0]?.currencyId
-          : currencies?.filter((currency) => currency.id === getValues("currency"))
-          .length > 0
+          : currencies?.filter(
+              (currency) => currency.id === getValues("currency")
+            ).length > 0
           ? getValues("currency")
           : currencies[0]?.id
       );
@@ -899,12 +923,40 @@ const FinanceTransfer = ({ navigation, route }) => {
                 id
                   ? [
                       {
-                        name: operationList.find(
-                          ({ cashInOrCashOut }) => cashInOrCashOut === -1
-                        ).cashboxName,
-                        label: operationList.find(
-                          ({ cashInOrCashOut }) => cashInOrCashOut === -1
-                        ).cashboxName,
+                        name: `${
+                          operationList.find(
+                            ({ cashInOrCashOut }) => cashInOrCashOut === -1
+                          ).cashboxName
+                        } ( ${
+                          transferData?.from?.balance &&
+                          transferData?.from?.balance?.length > 0
+                            ? transferData?.from?.balance
+                                .map((balanceItem) => {
+                                  const formattedBalance = formatNumberToLocale(
+                                    defaultNumberFormat(balanceItem.balance)
+                                  );
+                                  return `${formattedBalance} ${balanceItem.currencyCode}`;
+                                })
+                                .join(", ")
+                            : "0.00"
+                        })`,
+                        label: `${
+                          operationList.find(
+                            ({ cashInOrCashOut }) => cashInOrCashOut === -1
+                          ).cashboxName
+                        } ( ${
+                          transferData?.from?.balance &&
+                          transferData?.from?.balance?.length > 0
+                            ? transferData?.from?.balance
+                                .map((balanceItem) => {
+                                  const formattedBalance = formatNumberToLocale(
+                                    defaultNumberFormat(balanceItem.balance)
+                                  );
+                                  return `${formattedBalance} ${balanceItem.currencyCode}`;
+                                })
+                                .join(", ")
+                            : "0.00"
+                        })`,
                         value: operationList.find(
                           ({ cashInOrCashOut }) => cashInOrCashOut === -1
                         ).cashboxId,

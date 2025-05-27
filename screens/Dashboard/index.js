@@ -11,17 +11,16 @@ import {
 } from "react-native";
 import { find, chunk } from "lodash";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StackActions } from "@react-navigation/native";
+import Toast from "react-native-toast-message";
 import { useApi } from "../../hooks";
 import Carousel from "react-native-snap-carousel";
-import { ProButton } from "../../components";
 import { Container, ButtonContainer, Label, Footer } from "./styles";
 import { TenantContext, AuthContext } from "../../context";
 import { DefaultUser, Logo } from "../../assets";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { clearToken, getData, saveBusinessUnit } from "../../utils";
 import { getSettings, fetchProfileInfo, fetchTenantInfo } from "../../api";
-import { getBusinessUnit } from "../../api/operation-panel";
+import { fetchAllUserSettings, getBusinessUnit } from "../../api/operation-panel";
 import { fetchPermissions } from "../../api/tenant";
 import { permissionsList } from "../../utils/permissions";
 
@@ -41,11 +40,13 @@ const Dashboard = ({ navigation }) => {
     setTenants,
     tenantPersonRoles,
     setTenantPersonRoles,
+    permissions,
     setPermissions,
     setPermissionsByKeyValue,
     setBusinessUnitId,
     setTableSettings,
     tableSettings,
+    setUserSettings
   } = useContext(TenantContext);
   const { showActionSheetWithOptions } = useActionSheet();
 
@@ -83,22 +84,26 @@ const Dashboard = ({ navigation }) => {
         [
           "transaction_invoice_payment",
           "sales_invoice",
+          "return_from_customer_invoice",
           "purchase_invoice",
           "transaction_expense_payment",
           "money_transfer",
           "transfer_invoice",
           "remove_invoice",
+          "contact",
         ],
       ]);
       setSettingMin([
         [
           "transaction_invoice_payment",
           "sales_invoice",
+          "return_from_customer_invoice",
           "purchase_invoice",
           "transaction_expense_payment",
           "money_transfer",
           "transfer_invoice",
           "remove_invoice",
+          "contact",
         ],
       ]);
       // setSettingMax(chunk(operations, 12));
@@ -107,6 +112,16 @@ const Dashboard = ({ navigation }) => {
     },
     onReject: (error) => {
       console.log(error, "rejected");
+    },
+  });
+
+  const { isPending: loadSettings } = useApi({
+    promiseFn: fetchAllUserSettings,
+    onResolve: (data) => {
+      setUserSettings(data);
+    },
+    onReject: () => {
+      console.log("err");
     },
   });
 
@@ -146,10 +161,10 @@ const Dashboard = ({ navigation }) => {
     //   label: "İdxal alışı",
     //   key: 3,
     // },
-    // return_from_customer_invoice: {
-    //   label: "Geri alma",
-    //   key: 4,
-    // },
+    return_from_customer_invoice: {
+      label: "Geri alma",
+      key: 4,
+    },
     // return_to_supplier_invoice: {
     //   label: "Geri qaytarma",
     //   key: 5,
@@ -217,6 +232,9 @@ const Dashboard = ({ navigation }) => {
         case 2:
           navigation.push("Purchase");
           break;
+        case 4:
+          navigation.push("ReturnFromCustomer");
+          break;
         case 6:
           navigation.push("FinanceTransfer");
           break;
@@ -260,6 +278,9 @@ const Dashboard = ({ navigation }) => {
                 break;
               case 2:
                 navigation.push("Purchase");
+                break;
+              case 4:
+                navigation.push("ReturnFromCustomer");
                 break;
               case 6:
                 navigation.push("FinanceTransfer");
@@ -316,11 +337,15 @@ const Dashboard = ({ navigation }) => {
             rowGap: 20,
           }}
         >
-          {item?.map((item) => {
+          {item?.map((operation) => {
             const data = find(
               unitOperationsModals,
-              (unitOperation, key) => key === item
+              (unitOperation, key) => key === operation
             );
+            const permission = find(
+              permissions,
+              ({ key }) => key === operation
+            )?.permission;
             return (
               <View
                 style={{
@@ -331,10 +356,30 @@ const Dashboard = ({ navigation }) => {
                 }}
               >
                 <GestureHandlerRootView>
-                  <View style={styles.buttonBorder}>
+                  <View
+                    style={[
+                      styles.buttonBorder,
+                      !(permission === 2 && permission) && styles.disabled,
+                    ]}
+                  >
                     <ButtonContainer
                       style={{ borderRadius: 50 }}
-                      onPress={() => onPress(data?.key)}
+                      onPress={() => {
+                        if (!(permission === 2 && permission)) {
+                          Toast.show({
+                            type: "error",
+                            text1:
+                              "Bu əməliyyatı yerinə yetirmək üçün sizə səlahiyyətlər verilməyib, zəhmət olmasa inzibatçıya müraciət ediniz",
+                          });
+                        } else {
+                          if (data?.key === 17) {
+                            navigation.push("Contacts");
+                          } else {
+                            onPress(data?.key);
+                          }
+                        }
+                      }}
+                      disabled={!(permission === 2 && permission)}
                     >
                       <View
                         accessible
@@ -447,6 +492,9 @@ const styles = StyleSheet.create({
     borderColor: "#6fc99c",
     width: 80,
     padding: 20,
+  },
+  disabled: {
+    borderColor: "#cecece",
   },
 });
 

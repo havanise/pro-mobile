@@ -6,16 +6,21 @@ import {
   Dashboard,
   Login,
   Sale,
+  ReturnFromCustomer,
   Purchase,
   Invoice,
   FinanceTransfer,
   Payments,
   SaleTransfer,
   WritingOff,
+  Contacts,
+  AddProduct
 } from "../screens";
 import { AuthContext, TenantContext } from "../context";
 import Modul from "../screens/Modul";
 import Report from "../screens/Report";
+import { checkToken } from "../api";
+import { getData } from "../utils";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -23,33 +28,20 @@ const Tab = createBottomTabNavigator();
 export const AppEntry = () => {
   const [isLogged, setIsLogged] = useContext(AuthContext);
 
-  useEffect(() => {}, []);
+  useEffect(() => {
+    const fetchToken = async () => {
+      const token = await getData("TKN")?.then((result) => {
+        return result;
+      });
+      if (token) {
+        checkToken().then((response) => {
+          setIsLogged(true);
+        });
+      }
+    };
 
-  // const { isPending } = useApi({
-  //   promiseFn: checkToken,
-  //   onResolve: () => {
-  //     setIsLogged(false);
-  //   },
-  //   onReject: () => {
-  //     setIsLogged(false);
-  //   },
-  // });
-
-  // if (isPending) {
-  //   return (
-  //     <View>
-  //       <Text>Loading...</Text>
-  //     </View>
-  //   );
-  //   // TODO
-  //   // Loading component
-  // }
-
-  // if (isLogged) {
-  // 	return (
-  // 		<Authorized />
-  // 	);
-  // }
+    fetchToken();
+  }, []);
 
   function DashboardTabs() {
     return (
@@ -96,6 +88,11 @@ export const AppEntry = () => {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="ReturnFromCustomer"
+            component={ReturnFromCustomer}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="Purchase"
             component={Purchase}
             options={{ headerShown: false }}
@@ -123,6 +120,16 @@ export const AppEntry = () => {
           <Stack.Screen
             name="WritingOff"
             component={WritingOff}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Contacts"
+            component={Contacts}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="AddProduct"
+            component={AddProduct}
             options={{ headerShown: false }}
           />
         </>

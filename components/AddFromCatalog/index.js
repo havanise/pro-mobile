@@ -25,11 +25,12 @@ import {
   fetchProducts,
   fetchProductInvoices,
   fetchSalesPrice,
+  fetchReturnProducts,
+  fetchReturnFromCustomerCatalogs,
 } from "../../api";
 import { TenantContext } from "../../context";
 import { useApi } from "../../hooks";
 import moment from "moment";
-import { fetchTransferProductsFromCatalog } from "../../api/sale";
 
 const AddFromCatalog = ({
   getValues,
@@ -51,6 +52,8 @@ const AddFromCatalog = ({
   setDiscount,
   setProductsToHandle,
   productsToHandle,
+  applylastPrice = false,
+  checkQuantityForContact = false,
 }) => {
   const { BUSINESS_TKN_UNIT } = useContext(TenantContext);
 
@@ -121,17 +124,30 @@ const AddFromCatalog = ({
             ? [getValues("stockFrom")]
             : undefined,
         datetime:
-          type === "sales" || type === "transfer" || type === "writingOff"
+          type === "sales" ||
+          type === "transfer" ||
+          type === "writingOff" ||
+          type === "returnFromCustomer"
             ? moment(getValues("operationDate"))?.format(fullDateTimeWithSecond)
             : undefined,
+
+        businessUnitIds:
+          type === "returnFromCustomer" && BUSINESS_TKN_UNIT
+            ? [BUSINESS_TKN_UNIT]
+            : undefined,
+        catalog: type === "returnFromCustomer" ? selectedCatalogId : undefined,
         page: 1,
         limit: 20,
+        ...(checkQuantityForContact
+          ? { client: getValues("counterparty") }
+          : []),
       },
     });
   };
 
   const handleChildCatalogSelect = (id) => {
     setSelectedChildCatalogId(id);
+    console.log(id);
     runProducts({
       apiEnd: id,
       filter: {
@@ -162,11 +178,23 @@ const AddFromCatalog = ({
             ? [getValues("stockFrom")]
             : undefined,
         datetime:
-          type === "sales" || type === "transfer" || type === "writingOff"
+          type === "sales" ||
+          type === "transfer" ||
+          type === "writingOff" ||
+          type === "returnFromCustomer"
             ? moment(getValues("operationDate"))?.format(fullDateTimeWithSecond)
             : undefined,
+
+        businessUnitIds:
+          type === "returnFromCustomer" && BUSINESS_TKN_UNIT
+            ? [BUSINESS_TKN_UNIT]
+            : undefined,
+        catalog: type === "returnFromCustomer" ? id : undefined,
         page: 1,
         limit: 20,
+        ...(checkQuantityForContact
+          ? { client: getValues("counterparty") }
+          : []),
       },
     });
   };
@@ -212,7 +240,14 @@ const AddFromCatalog = ({
             datetime: moment(getValues("operationDate"))?.format(
               fullDateTimeWithSecond
             ),
-            stocks: getValues("stockFrom"),
+            stocks:
+              type === "returnFromCustomer"
+                ? getValues("stockFrom")
+                : undefined,
+            businessUnitIds:
+              type === "returnFromCustomer" && BUSINESS_TKN_UNIT
+                ? [BUSINESS_TKN_UNIT]
+                : undefined,
           },
         });
       }
@@ -224,7 +259,7 @@ const AddFromCatalog = ({
       (type === "sales" || type === "transfer" || type === "writingOff") &&
       newSelectedProducts?.length
     ) {
-      if (type === "sales") {
+      if (type === "sales" && !applylastPrice) {
         fetchSalesPrice({
           filter: {
             currency: getValues("currency"),
@@ -389,6 +424,8 @@ const AddFromCatalog = ({
             ids: newSelectedProducts.map((product) => product.productId),
             withUnitOfMeasurements: 1,
             stock: getValues("stockFrom") || getValues("stockTo"),
+            priceInvoiceTypes: applylastPrice ? [2] : undefined,
+            withMinMaxPrice: applylastPrice ? 1 : undefined,
             businessUnitIds: BUSINESS_TKN_UNIT
               ? [BUSINESS_TKN_UNIT]
               : undefined,
@@ -399,8 +436,86 @@ const AddFromCatalog = ({
               (productD) => productD.id === product?.productId
             );
 
+            const price = math.mul(
+              parseFloat(productInfo?.lastPrice ?? 0),
+              productInfo?.coefficientRelativeToMain ?? 1
+            );
+            const productPriceData = { invoicePrice: price };
+
+            const invoicePrice = productPriceData?.invoicePrice
+              ? Number(productPriceData?.invoicePrice)
+              : null;
+
+            const roadTaxAmount = productInfo?.isRoadTaxActive
+              ? find(
+                  productInfo?.roadTaxes,
+                  (tax) => tax?.tenantCurrency === getValues("currency")
+                )?.amount
+                ? Number(
+                    math.mul(
+                      find(
+                        productData.data[0]?.roadTaxes,
+                        (tax) => tax?.tenantCurrency === getValues("currency")
+                      )?.amount || 0,
+                      Number(product?.coefficientRelativeToMain || 1)
+                    )
+                  )
+                : null
+              : 0;
+            const totalTaxAmount = roadTaxAmount
+              ? math.mul(Number(roadTaxAmount || 0), Number(invQuantity ?? 0))
+              : null;
+
+            const totalEndPrice = math.mul(
+              Number(invoicePrice || 0),
+              Number(product.invoiceQuantity || 1)
+            );
+
             return {
               ...product,
+              ...(type === "sales"
+                ? {
+                    totalRoadTaxAmount: totalTaxAmount,
+                    totalEndPricePerProduct: math.add(
+                      Number(totalTaxAmount || 0),
+                      Number(totalEndPrice || 0)
+                    ),
+                    invoicePrice: invoicePrice,
+                    mainInvoicePrice: invoicePrice,
+                    discountedPrice: invoicePrice
+                      ? defaultNumberFormat(invoicePrice)
+                      : null,
+                    totalPricePerProduct: math.mul(
+                      Number(invoicePrice || 0),
+                      Number(product.invoiceQuantity || 1)
+                    ),
+                    autoDiscountedPrice: productPriceData?.discountedPrice,
+                    discountedPrice:
+                      defaultNumberFormat(
+                        productPriceData?.discountedPrice ?? invoicePrice ?? 0
+                      ) ?? null,
+                    discountPercentage: productPriceData?.discountedPrice
+                      ? math
+                          .mul(
+                            math.div(
+                              math.sub(
+                                invoicePrice ?? 0,
+                                productPriceData?.discountedPrice ?? 0
+                              ) || 0,
+                              Number(invoicePrice ?? 0) || 0
+                            ) || 0,
+                            100
+                          )
+                          ?.toFixed(4)
+                      : 0,
+                    discountAmount: productPriceData?.discountedPrice
+                      ? math.sub(
+                          invoicePrice ?? 0,
+                          productPriceData?.discountedPrice ?? 0
+                        )
+                      : 0,
+                  }
+                : []),
               catalog: {
                 id: productInfo?.catalogId,
                 isServiceType: productInfo?.isServiceType,
@@ -1093,6 +1208,8 @@ const AddFromCatalog = ({
     deferFn:
       type === "sales" || type === "transfer" || type === "writingOff"
         ? fetchSalesProductsFromCatalog
+        : type === "returnFromCustomer"
+        ? fetchReturnProducts
         : fetchProductsFromCatalog,
     onResolve: (data) => {
       setFilteredProducts(data);
@@ -1103,7 +1220,12 @@ const AddFromCatalog = ({
   });
 
   const { isLoading, run: runCatalog } = useApi({
-    deferFn: type === "sales" ? fetchSalesCatalogs : fetchCatalogs,
+    deferFn:
+      type === "sales"
+        ? fetchSalesCatalogs
+        : type === "returnFromCustomer"
+        ? fetchReturnFromCustomerCatalogs
+        : fetchCatalogs,
     onResolve: (data) => {
       let appendList = {};
       if (data) {
@@ -1120,6 +1242,16 @@ const AddFromCatalog = ({
       console.log(error, "rejected");
     },
   });
+
+  console.log(
+    selectedCatalogId
+      ? childCatalogs[selectedCatalogId]?.map((item) => ({
+          ...item,
+          label: item.name,
+          value: item.id,
+        }))
+      : []
+  );
 
   return (
     <Modal
@@ -1152,14 +1284,35 @@ const AddFromCatalog = ({
               data={catalogs || []}
               disabled={allCatalogsSelected}
               setData={setCatalogs}
-              fetchData={type === "sales" ? fetchSalesCatalogs : fetchCatalogs}
+              fetchData={
+                type === "sales"
+                  ? fetchSalesCatalogs
+                  : type === "returnFromCustomer"
+                  ? fetchReturnFromCustomerCatalogs
+                  : fetchCatalogs
+              }
               notForm
               catalog={true}
-              apiEnd={type === "purchase" ? undefined : getValues("stockFrom")}
+              apiEnd={
+                type === "purchase" || type === "returnFromCustomer"
+                  ? undefined
+                  : getValues("stockFrom")
+              }
               selectedValueFromParent={selectedCatalogId}
               filter={
                 type === "purchase"
                   ? { limit: 20, page: 1 }
+                  : type === "returnFromCustomer"
+                  ? {
+                      limit: 20,
+                      page: 1,
+                      datetime: moment(getValues("operationDate"))?.format(
+                        fullDateTimeWithSecond
+                      ),
+                      businessUnitIds: BUSINESS_TKN_UNIT
+                        ? [BUSINESS_TKN_UNIT]
+                        : undefined,
+                    }
                   : {
                       limit: 20,
                       page: 1,
@@ -1191,6 +1344,7 @@ const AddFromCatalog = ({
               notForm
               filter={{}}
               handleSelectValue={(id) => {
+                console.log(id);
                 handleChildCatalogSelect(id);
               }}
             />
@@ -1250,6 +1404,8 @@ const AddFromCatalog = ({
               fetchData={
                 type === "sales" || type === "transfer" || type === "writingOff"
                   ? fetchSalesProductsFromCatalog
+                  : type === "returnFromCustomer"
+                  ? fetchReturnProducts
                   : fetchProductsFromCatalog
               }
               notForm
@@ -1288,13 +1444,26 @@ const AddFromCatalog = ({
                 datetime:
                   type === "sales" ||
                   type === "transfer" ||
-                  type === "writingOff"
+                  type === "writingOff" ||
+                  type === "returnFromCustomer"
                     ? moment(getValues("operationDate"))?.format(
                         fullDateTimeWithSecond
                       )
                     : undefined,
+
+                businessUnitIds:
+                  type === "returnFromCustomer" && BUSINESS_TKN_UNIT
+                    ? [BUSINESS_TKN_UNIT]
+                    : undefined,
+                catalog:
+                  type === "returnFromCustomer"
+                    ? selectedChildCatalogId || selectedCatalogId
+                    : undefined,
+                ...(checkQuantityForContact
+                  ? { client: getValues("counterparty") }
+                  : []),
               }}
-              handleSelectValue={(id) => {
+              handleSelectValue={({ id }) => {
                 addProduct(id);
               }}
             />
@@ -1350,6 +1519,7 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   modalView: {
+    minWidth: 300,
     margin: 20,
     backgroundColor: "white",
     borderRadius: 20,

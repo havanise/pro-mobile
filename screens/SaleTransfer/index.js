@@ -79,7 +79,6 @@ import {
 import AddFromCatalog from "../../components/AddFromCatalog";
 import InvoiceModalWithSN from "../../components/InvoiceModalWithSN";
 import InvoiceModalWithoutSN from "../../components/InvoiceModalWithoutSN";
-import { Tooltip } from "@rneui/themed";
 import { backgroundColor } from "@shopify/restyle";
 
 const math = require("exact-math");
@@ -404,22 +403,24 @@ const FirstRoute = (props) => {
             name="stockTo"
             required
           />
-          <ProAsyncSelect
-            label="İcra statusu"
-            data={statusData[0]?.statuses?.map((item) => ({
-              ...item,
-              label: item.name,
-              value: item.id,
-            }))}
-            setData={() => {}}
-            fetchData={() => {}}
-            async={false}
-            filter={{}}
-            required
-            control={control}
-            allowClear={false}
-            name="status"
-          />
+          {statusData.some((item) => item.isStatusActive === true) ? (
+            <ProAsyncSelect
+              label="İcra statusu"
+              data={statusData[0]?.statuses?.map((item) => ({
+                ...item,
+                label: item.name,
+                value: item.id,
+              }))}
+              setData={() => {}}
+              fetchData={() => {}}
+              async={false}
+              filter={{}}
+              required
+              control={control}
+              allowClear={false}
+              name="status"
+            />
+          ) : null}
         </View>
         <View style={{ display: "flex", flexDirection: "row" }}>
           <ProButton
@@ -490,7 +491,6 @@ const SecondRoute = (props) => {
   };
 
   const setProductQuantity = (productId, newQuantity, transfer, totalPrice) => {
-    console.log(productId, newQuantity, transfer, totalPrice, "jdjd");
     const newSelectedProducts = selectedProducts.map((selectedProduct) => {
       if (
         productId === (selectedProduct.productUniqueId ?? selectedProduct.id)
@@ -704,7 +704,6 @@ const SecondRoute = (props) => {
                 value={invoiceQuantity ? `${invoiceQuantity}` : undefined}
                 keyboardType="numeric"
                 onChangeText={(event) => {
-                  console.log(event);
                   handleQuantityChange(
                     productUniqueId ?? id,
                     event,
@@ -758,19 +757,21 @@ const SecondRoute = (props) => {
                         {currentMeasurement?.unitOfMeasurementName?.toLowerCase()}
                       </Text>
                     }
-                  >
-                    <Text>
-                      {currentMeasurement?.unitOfMeasurementName
-                        ? (currentMeasurement?.unitOfMeasurementName?.length > 6
-                            ? `${currentMeasurement?.unitOfMeasurementName?.slice(
-                                0,
-                                6
-                              )}...`
-                            : currentMeasurement?.unitOfMeasurementName
-                          )?.toLowerCase()
-                        : ""}
-                    </Text>
-                  </ProTooltip>
+                    trigger={
+                      <Text>
+                        {currentMeasurement?.unitOfMeasurementName
+                          ? (currentMeasurement?.unitOfMeasurementName?.length >
+                            6
+                              ? `${currentMeasurement?.unitOfMeasurementName?.slice(
+                                  0,
+                                  6
+                                )}...`
+                              : currentMeasurement?.unitOfMeasurementName
+                            )?.toLowerCase()
+                          : ""}
+                      </Text>
+                    }
+                  />
                 </View>
               )}
             </View>,
@@ -821,19 +822,20 @@ const SecondRoute = (props) => {
                       ))}
                     </View>
                   }
-                >
-                  <View
-                    style={{
-                      backgroundColor: "#45a8e291",
-                      borderRadius: 5,
-                      width: 24,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text>{serialNumbers?.length}</Text>
-                  </View>
-                </ProTooltip>
+                  trigger={
+                    <View
+                      style={{
+                        backgroundColor: "#45a8e291",
+                        borderRadius: 5,
+                        width: 24,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text>{serialNumbers?.length}</Text>
+                    </View>
+                  }
+                />
               )}
             </View>,
             <ProButton
@@ -1607,15 +1609,11 @@ const SecondRoute = (props) => {
       <View style={{ marginBottom: 10 }}>
         <View style={styles.footer}>
           <Text>Toplam (maya dəyəri):</Text>
-          <Tooltip
-            visible={open}
-            onOpen={() => {
-              // setOpen(true);
-            }}
-            onClose={() => {
+          <ProTooltip
+            isVisible={open}
+            onRequestClose={() => {
               setOpen(false);
             }}
-            // containerStyle={{ width: 145, height: "auto" }}
             popover={
               <Text>
                 {cost}{" "}
@@ -1625,45 +1623,46 @@ const SecondRoute = (props) => {
                 }
               </Text>
             }
-          >
-            <ProButton
-              label={
-                load ? (
-                  <AntDesign name="sync" size={20} color="black" />
-                ) : (
-                  <FontAwesome name="info-circle" size={20} color="black" />
-                )
-              }
-              padding={'0px'}
-              flex={false}
-              type="transparent"
-              onClick={() => {
-                if (!load) {
-                  if (getValues("stockFrom") && selectedProducts.length > 0) {
-                    setLoad(true);
-                    getCost({
-                      data: {
-                        excludeInvoiceId: id ? id : null, // edit
-                        stock: getValues("stockFrom"),
-                        operationDate: moment(
-                          getValues("operationDate")
-                        ).format(fullDateTimeWithSecond),
-                        invoiceProducts_ul: handleTotalIconClick(
-                          selectedProducts,
-                          false
-                        ),
-                      },
-                    }).then((res) => {
-                      setLoad(false);
-                      setCost(res);
-                      setOpen(true);
-                    });
-                  }
+            notDefaultOpen
+            onClick={() => {
+              if (!load) {
+                if (getValues("stockFrom") && selectedProducts.length > 0) {
+                  setLoad(true);
+                  getCost({
+                    data: {
+                      excludeInvoiceId: id ? id : null, // edit
+                      stock: getValues("stockFrom"),
+                      operationDate: moment(getValues("operationDate")).format(
+                        fullDateTimeWithSecond
+                      ),
+                      invoiceProducts_ul: handleTotalIconClick(
+                        selectedProducts,
+                        false
+                      ),
+                    },
+                  }).then((res) => {
+                    setLoad(false);
+                    setCost(res);
+                    setOpen(true);
+                  });
                 }
-              }}
-            />
-          </Tooltip>
-          
+              }
+            }}
+            trigger={
+              <ProButton
+                label={
+                  load ? (
+                    <AntDesign name="sync" size={20} color="black" />
+                  ) : (
+                    <FontAwesome name="info-circle" size={20} color="black" />
+                  )
+                }
+                padding={"0px"}
+                flex={false}
+                type="transparent"
+              />
+            }
+          />
         </View>
 
         <View style={styles.footer}>
@@ -2174,7 +2173,6 @@ const SaleTransfer = ({ navigation, route }) => {
   };
 
   const onSubmit = (data) => {
-    console.log(selectedProducts);
     if (selectedProducts.length === 0) {
       Toast.show({
         type: "error",
@@ -2345,7 +2343,7 @@ const styles = StyleSheet.create({
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: 'center',
+    alignItems: "center",
   },
   checkboxContainer: {
     flexDirection: "row",

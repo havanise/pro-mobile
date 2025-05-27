@@ -18,7 +18,7 @@ const App = () => {
               <ActionSheetProvider>
                 <AppEntry />
               </ActionSheetProvider>
-              <Toast ref={(ref) => Toast.setRef(ref)} />
+              <Toast />
             </TenantContextProvider>
           </AuthContextProvider>
         </NavigationContainer>

@@ -30,3 +30,10 @@ export const deleteTransaction = (prop) => {
     }
   );
 };
+
+export const fetchGroupedTransaction = (prop) => {
+  return client(`/transactions/invoice-payments-grouped-by-type/${prop?.transactionId}`, {
+    method: "GET",
+    filters: prop?.filter,
+  });
+};

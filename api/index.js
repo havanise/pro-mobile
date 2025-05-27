@@ -3,6 +3,7 @@ export {
   getSettings,
   fetchBusinessSettings,
   fetchVatSettings,
+  createSettings,
 } from "./operation-panel";
 export { checkToken, login, integrate, getNewToken } from "./auth";
 export { fetchTenantInfo, fetchProfileInfo, fetchTenants } from "./tenant";
@@ -15,9 +16,11 @@ export {
   getProducts,
   getPurchaseProducts,
   fetchProducts,
+  fetchReturnProducts,
   fetchProductCount,
   createInvoice,
   editInvoice,
+  editNewReturnInvoice,
   deleteInvoice,
   createOperationInvoice,
   createOperationTransfer,
@@ -30,15 +33,23 @@ export {
   fetchProductsFromCatalog,
   fetchCatalogs,
   fetchSalesCatalogs,
+  fetchReturnFromCustomerCatalogs,
   fetchSalesLastInvoice,
   fetchProductInvoices,
+  fetchReturnInvoice,
   fetchSalesInvoiceList,
   fetchSalesInvoicesCount,
   fetchStatusOperations,
   editInvoiceStatus,
   fetchBarterInvoices,
   getCost,
-  fetchSalesBuysForms
+  fetchSalesBuysForms,
+  fetchCustomerTypes,
+  fetchBarcodeTypes,
+  fetchFreeBarcodeTypes,
+  generateBarcode,
+  createProduct,
+  createCompositon
 } from "./sale";
 
 export { fetchReportList } from "./reports";
@@ -47,6 +58,8 @@ export {
   getCounterparties,
   fetchAdvancePaymentByContactId,
   fetchInvoiceListByContactId,
+  fetchBrands,
+  remove_phone_numbers,
 } from "./contact";
 export { getEmployees } from "./employee";
 export { getStock } from "./stock";
@@ -64,7 +77,8 @@ export {
   fetchTransactionList,
   fetchTransactionsCount,
   getExpenseCatalogs,
-  deleteTransaction
+  deleteTransaction,
+  fetchGroupedTransaction
 } from "./transactions";
 
 export { fetchFilteredUnitCashbox } from "./business-unit";

@@ -24,6 +24,7 @@ const SettingModal = (props) => {
     columnSource,
     AllStandartColumns,
     setVisible,
+    fromPandL = undefined,
   } = props;
 
   const [allColumn, setAllColumn] = useState([]);
@@ -168,10 +169,30 @@ const SettingModal = (props) => {
               {allCheck ? (
                 <GestureHandlerRootView style={{ flex: 1 }}>
                   <DraggableFlatList
-                    data={[
-                      ...allColumn?.filter((col) => col.standart === true),
-                      ...allColumn?.filter((col) => col.standart === false),
-                    ]}
+                    data={
+                      fromPandL
+                        ? [
+                            ...allColumn?.filter(
+                              (col) => col.standart === true
+                            ),
+                            ...allColumn?.filter(
+                              (col) => col.standart === false
+                            ),
+                          ].map((item) => {
+                            return {
+                              ...item,
+                              name: `${item.name}, ${fromPandL?.code}`,
+                            };
+                          })
+                        : [
+                            ...allColumn?.filter(
+                              (col) => col.standart === true
+                            ),
+                            ...allColumn?.filter(
+                              (col) => col.standart === false
+                            ),
+                          ]
+                    }
                     renderItem={renderItem}
                     keyExtractor={(item, index) => `draggable-item-${index}`}
                     onDragEnd={({ data }) => setAllColumn(data)}
@@ -180,7 +201,16 @@ const SettingModal = (props) => {
               ) : (
                 <GestureHandlerRootView style={{ flex: 1 }}>
                   <DraggableFlatList
-                    data={allColumn}
+                    data={
+                      fromPandL
+                        ? allColumn.map((item) => {
+                            return {
+                              ...item,
+                              name: `${item.name}, ${fromPandL?.code}`,
+                            };
+                          })
+                        : allColumn
+                    }
                     renderItem={renderItem}
                     keyExtractor={(item, index) => `draggable-item-${index}`}
                     onDragEnd={({ data }) => setAllColumn(data)}

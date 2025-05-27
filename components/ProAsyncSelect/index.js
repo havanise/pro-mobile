@@ -64,6 +64,8 @@ const ProAsyncSelect = ({
   isMulti = false,
   apiEnd,
   combineValue = false,
+  withProductCode = false,
+  searchName = false,
 }) => {
   const [nextPage, setNextPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,8 +75,8 @@ const ProAsyncSelect = ({
   const [selectedValue, setSelectedValue] = useState(defaultValue);
   const [reachedEnd, setReachedEnd] = useState(false);
   const [callFunc, setCallFunc] = useState(false);
-  const [multiSelected, setMultiSelected] = useState([]);
-  const [defValue, setDefValue] = useState({});
+  const [multiSelected, setMultiSelected] = useState(defaultValue || []);
+  const [defValue, setDefValue] = useState([]);
 
   const { isLoad, run } = useApi({
     deferFn: fetchData,
@@ -104,10 +106,14 @@ const ProAsyncSelect = ({
         const merged = [...data.filter((d) => !ids.has(`${d.id}`)), ...resp];
         if (callFunc) {
           setData([
-            defValue,
+            ...defValue,
             ...resp.map((item) => ({
               ...item,
-              label: combineValue
+              label: withProductCode
+                ? item.productCode !== null
+                  ? `${item.name} / ${item.productCode}`
+                  : item.name
+                : combineValue
                 ? `${item[valueNameTwo]} ${item[valueName]} `
                 : valueName
                 ? item[valueName]
@@ -122,7 +128,11 @@ const ProAsyncSelect = ({
           setData(
             merged.map((item) => ({
               ...item,
-              label: combineValue
+              label: withProductCode
+                ? item.productCode !== null
+                  ? `${item.name} / ${item.productCode}`
+                  : item.name
+                : combineValue
                 ? `${item[valueNameTwo]} ${item[valueName]} `
                 : valueName
                 ? item[valueName]
@@ -150,6 +160,12 @@ const ProAsyncSelect = ({
       });
     }
   }, [callFunc]);
+
+  useEffect(() => {
+    if (isMulti && !notForm && defaultValue) {
+      setMultiSelected(defaultValue)
+    }
+  }, [isMulti, notForm, defaultValue]);
 
   const onRefresh = () => {
     fetchApi("https://pokeapi.co/api/v2/pokemon?limit=20&offset=0", true);
@@ -201,14 +217,33 @@ const ProAsyncSelect = ({
             placeholder={!isFocus ? "Seçin" : "..."}
             searchPlaceholder="Search..."
             value={multiSelected}
-            onFocus={() => setIsFocus(true)}
+            onFocus={() => {
+              setIsFocus(true);
+              if (async && filter.page === 1 && isEmpty(data)) {
+                run({
+                  filter: { ...filter, page: 1 },
+                  apiEnd: apiEnd,
+                });
+              }
+            }}
             onBlur={() => {
               setIsFocus(false);
+              if (searchWithBack) {
+                setData([]);
+              } else {
+                if (async && nextPage !== 1) {
+                  setNextPage(1);
+                  setCallFunc(true);
+                }
+              }
             }}
             onChange={(item) => {
               setMultiSelected(item);
-              handleSelectValue(item[item.length - 1]);
+              handleSelectValue({ list: item, id: item[item.length - 1] });
               setIsFocus(false);
+              if (async && nextPage !== 1) {
+                setDefValue(data.filter((it) => it.value === item.value));
+              }
             }}
             onChangeText={(keyword) => {
               if (searchWithBack || async) {
@@ -318,7 +353,94 @@ const ProAsyncSelect = ({
             required: required ? "Bu dəyər boş olmamalıdır" : false,
           }}
           render={({ field: { value, onChange }, fieldState: { error } }) => {
-            return (
+            return isMulti ? (
+              <MultiSelect
+                disable={disabled}
+                style={[
+                  styles.dropdown,
+                  isFocus && { borderColor: "blue" },
+                  disabled && { backgroundColor: "#ececec" },
+                  style && style,
+                ]}
+                placeholderStyle={styles.placeholderStyle}
+                selectedTextStyle={styles.selectedTextStyle}
+                inputSearchStyle={styles.inputSearchStyle}
+                data={data}
+                search
+                maxHeight={300}
+                labelField="label"
+                valueField="value"
+                placeholder={!isFocus ? "Seçin" : "..."}
+                searchPlaceholder="Search..."
+                value={multiSelected}
+                onFocus={() => {
+                  setIsFocus(true);
+                  if (async && filter.page === 1 && isEmpty(data)) {
+                    run({
+                      filter: { ...filter, page: 1 },
+                      apiEnd: apiEnd,
+                    });
+                  }
+                }}
+                onBlur={() => {
+                  setIsFocus(false);
+                  if (searchWithBack) {
+                    setData([]);
+                  } else {
+                    if (async && nextPage !== 1) {
+                      setNextPage(1);
+                      setCallFunc(true);
+                    }
+                  }
+                }}
+                onChange={(item) => {
+                  onChange(item);
+                  console.log(item, "uehebbeb");
+                  setMultiSelected(item);
+                  handleSelectValue({ list: item, id: item[item.length - 1] });
+                  setIsFocus(false);
+                  if (async && nextPage !== 1) {
+                    setDefValue(data.filter((it) => it.value === item.value));
+                  }
+                }}
+                onChangeText={(keyword) => {
+                  if (searchWithBack || async) {
+                    setIsSearch(keyword.length > 0);
+                    if (searchWithBack) {
+                      if (keyword.length > 2) {
+                        handleSearch(keyword);
+                      }
+                    } else {
+                      run({
+                        filter: searchName
+                          ? {
+                              ...filter,
+                              page: async ? 1 : undefined,
+                              [searchName]: async ? keyword : undefined,
+                            }
+                          : {
+                              ...filter,
+                              page: async ? 1 : undefined,
+                              name: async ? keyword : undefined,
+                            },
+                        apiEnd: apiEnd,
+                      });
+                    }
+                  }
+                }}
+                flatListProps={{
+                  // ListEmptyComponent: <RenderEmpty />,
+                  ListFooterComponent: !reachedEnd && (
+                    <RenderFooter isLoading={isLoading} />
+                  ),
+                  refreshControl: (
+                    <RefreshControl refreshing={false} onRefresh={onRefresh} />
+                  ),
+                  onEndReachedThreshold: 0.5,
+                  onEndReached: async && !reachedEnd ? onLoadMore : () => {},
+                }}
+              />
+            ) : (
               <>
                 <Dropdown
                   disable={disabled}
@@ -363,7 +485,7 @@ const ProAsyncSelect = ({
                     setIsFocus(false);
                     handleSelectValue(item.id);
                     if (async && nextPage !== 1) {
-                      setDefValue(data.find((it) => it.value === item.value));
+                      setDefValue(data.filter((it) => it.value === item.value));
                     }
                   }}
                   renderRightIcon={(item) => {

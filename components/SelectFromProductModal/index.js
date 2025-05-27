@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useContext } from "react";
 import { Table, TableWrapper, Row, Cell } from "react-native-reanimated-table";
 import Pagination from "@cherry-soft/react-native-basic-pagination";
 import {
@@ -8,8 +8,9 @@ import {
   ProButton,
   ProInput,
   ProTooltip,
+  SettingModal,
 } from "../../components";
-import { fetchProducts, fetchProductCount, fetchSalesPrice } from "../../api";
+import { fetchProducts, fetchProductCount, fetchSalesPrice, createSettings } from "../../api";
 import { AntDesign } from "@expo/vector-icons";
 import {
   re_amount,
@@ -25,9 +26,13 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
+  Modal
 } from "react-native";
 import InvoiceModalWithSN from "../InvoiceModalWithSN";
 import { useFilterHandle } from "../../hooks";
+import moment from "moment";
+import { ProductSelectSetting_Table_Data } from "../../utils/table-config/salesBuyModule";
+import { TenantContext } from "../../context";
 
 const math = require("exact-math");
 
@@ -50,7 +55,6 @@ const SelectFromProductModal = (props) => {
   const {
     isVisible = false,
     setSelectedProducts,
-    BUSINESS_TKN_UNIT,
     handleModal = () => {},
     stockTo = false,
     startDate = false,
@@ -60,37 +64,35 @@ const SelectFromProductModal = (props) => {
     isReturnFrom = false,
     isConsigmentSales = false,
     isReturnFromConsigmet = false,
-    fetchBrands,
-    fetchFilteredCatalogs,
     selectedProducts,
     contactId,
     type,
-    fetchFilteredStocks,
     getValues,
     setDiscount,
+    applylastPrice = false,
+    autofillDiscountPrice,
   } = props;
+
+  const { BUSINESS_TKN_UNIT, tableSettings, setTableSettings } =
+    useContext(TenantContext);
 
   const [data, setData] = useState(tableData);
   const [product, setProduct] = useState([]);
   const [productCount, setProductCount] = useState(0);
+  const [settingVisible, setSettingVisible] = useState(false);
+  const [tableSettingData, setTableSettingData] = useState(
+    ProductSelectSetting_Table_Data
+  );
   const [selectedInvoiceProductsFromModal, setSelectedInvoiceProductFromModal] =
     useState([]);
-  const [allBusinessUnits, setAllBusinessUnits] = useState(undefined);
-  const [componentIsMounted, setComponentIsMounted] = useState(false);
-  const [catalogs, setCatalogs] = useState({ root: [], children: {} });
-  const [category, setCategory] = useState(null);
   const [pageSize, setPageSize] = useState(8);
   const [currentPage, setCurrentPage] = useState(1);
   const [serialNumber, setSerialNumber] = useState(null);
-  const [brands, setBrands] = useState([]);
-  const [selectedCatalogs, setSelectedCatalogs] = useState([]);
-  const [subcategory, setSubCategory] = useState(null);
-  const [products, setProducts] = useState([]);
   const [quantities, setQuantities] = useState({});
-  const [checkBoxValue, setCheckBoxValue] = useState({});
   const [showOnlySelected, setShowOnlySelected] = useState(false);
   const [selectedRowId, setSelectedRowId] = useState(undefined);
   const [invoiceModalWithSN, setInvoiceModalWithSN] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState([]);
   const removeStockFilter =
     isReturnFromConsigmet || isConsigmentSales || isReturnFrom;
   const selectedSeiralNumberProduct = useMemo(
@@ -100,105 +102,149 @@ const SelectFromProductModal = (props) => {
       ),
     [selectedInvoiceProductsFromModal, selectedRowId]
   );
-  const [stocks, setStocks] = useState([]);
-
-  const toggleShowOnlySelected = () => {
-    setShowOnlySelected((prevShowOnlySelected) => !prevShowOnlySelected);
-  };
-  //   const {
-  //     parentCatalogs,
-  //     childCatalogs,
-  //     handleParentCatalogsChange,
-  //     handleChildCatalogsChange,
-  //   } = useCatalog();
 
   useEffect(() => {
-    setData({
-      ...data,
-      tableData: product.map((row, index) => {
-        return [
-          (currentPage - 1) * pageSize + index + 1,
-          <ProTooltip
-            containerStyle={{ width: 145, height: "auto" }}
-            popover={<Text>{row.parentCatalogName || ""}</Text>}
-          >
-            <Text>
-              {row.parentCatalogName ? row.parentCatalogName?.trim() : "-"}
-            </Text>
-          </ProTooltip>,
-          <ProTooltip
-            containerStyle={{ width: 145, height: "auto" }}
-            popover={<Text>{row.catalogName || ""}</Text>}
-          >
-            <Text>{row.catalogName ? row.catalogName?.trim() : "-"}</Text>
-          </ProTooltip>,
-          row.name,
-          <ProTooltip
-            containerStyle={{ width: 145, height: "auto" }}
-            popover={<Text>{row.unitOfMeasurementName || ""}</Text>}
-          >
-            <Text>
-              {row.unitOfMeasurementName
-                ? row.unitOfMeasurementName?.trim()
-                : "-"}
-            </Text>
-          </ProTooltip>,
-          <Text>
-            {formatNumberToLocale(defaultNumberFormat(row.pricePerUnit))}
-            {row.currencyCode}
-          </Text>,
-          <Text>
-            {formatNumberToLocale(defaultNumberFormat(row.quantity))}
-          </Text>,
-          <View
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
-            <ProButton
-              label={<AntDesign name="minus" size={16} color="#dedede" />}
-              type="transparent"
-              style={{ width: "15%", borderWidth: 1 }}
-              defaultStyle={{ borderRadius: 5 }}
-              flex={false}
-              onClick={() => decreaseQuantity(row.id, row)}
-            />
-            <TextInput
-              keyboardType="numeric"
-              value={
-                `${
-                  selectedInvoiceProductsFromModal?.find(
-                    ({ id }) => id === row.id
-                  )?.invoiceQuantity || 0
-                }` || ""
+    const columns = [];
+    let column = visibleColumns;
+    if (visibleColumns !== undefined && product) {
+      setData({
+        tableHead: [
+          "No",
+          ...visibleColumns.map((item) => {
+            return ProductSelectSetting_Table_Data.find(
+              (i) => i.dataIndex === item
+            ).name;
+          }),
+        ],
+        widthArr: [
+          70,
+          ...visibleColumns.map((el) => {
+            return 140;
+          }),
+        ],
+        tableData: product.map((row, index) => {
+          columns[column.indexOf("parentCatalogName")] = (
+            <ProTooltip
+              containerStyle={{ width: 145, height: "auto" }}
+              popover={<Text>{row.parentCatalogName || ""}</Text>}
+              trigger={
+                <Text>
+                  {row.parentCatalogName ? row.parentCatalogName?.trim() : "-"}
+                </Text>
               }
-              onChange={(e) => handleQuantityChange(e.target.value, row)}
-              disabled={!row.isWithoutSerialNumber}
+            />
+          );
+          columns[column.indexOf("catalogName")] = (
+            <ProTooltip
+              containerStyle={{ width: 145, height: "auto" }}
+              popover={<Text>{row.catalogName || ""}</Text>}
+              trigger={
+                <Text>{row.catalogName ? row.catalogName?.trim() : "-"}</Text>
+              }
+            />
+          );
+          columns[column.indexOf("name")] = <Text>{row.name}</Text>;
+          columns[column.indexOf("unitOfMeasurementName")] = (
+            <ProTooltip
+              containerStyle={{ width: 145, height: "auto" }}
+              popover={<Text>{row.unitOfMeasurementName || ""}</Text>}
+              trigger={
+                <Text>
+                  {row.unitOfMeasurementName
+                    ? row.unitOfMeasurementName?.trim()
+                    : "-"}
+                </Text>
+              }
+            />
+          );
+          columns[column.indexOf("pricePerUnit")] = (
+            <Text>
+              {formatNumberToLocale(defaultNumberFormat(row.pricePerUnit))}
+              {row.currencyCode}
+            </Text>
+          );
+          columns[column.indexOf("quantity")] = (
+            <Text>
+              {formatNumberToLocale(defaultNumberFormat(row.quantity))}
+            </Text>
+          );
+          columns[column.indexOf("Quantity")] = (
+            <View
               style={{
-                margin: 5,
-                padding: 5,
-                height: "60%",
-                width: "50%",
-                borderWidth: 1,
-                borderRadius: 5,
-                borderColor: "#D0DBEA",
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
               }}
-            />
-            <ProButton
-              label={<AntDesign name="pluscircleo" size={16} color="#dedede" />}
-              type="transparent"
-              style={{ width: "15%", borderWidth: 1 }}
-              defaultStyle={{ borderRadius: 5 }}
-              flex={false}
-              onClick={() => increaseQuantity(row)}
-            />
-          </View>,
-        ];
-      }),
-    });
-  }, [product, selectedInvoiceProductsFromModal]);
+            >
+              <ProButton
+                label={<AntDesign name="minus" size={16} color="#dedede" />}
+                type="transparent"
+                style={{ width: "15%", borderWidth: 1 }}
+                defaultStyle={{ borderRadius: 5 }}
+                flex={false}
+                onClick={() => decreaseQuantity(row.id, row)}
+              />
+              <TextInput
+                keyboardType="numeric"
+                value={
+                  `${
+                    selectedInvoiceProductsFromModal?.find(
+                      ({ id }) => id === row.id
+                    )?.invoiceQuantity || ""
+                  }` || ""
+                }
+                placeholder="0"
+                onChangeText={(value) => handleQuantityChange(value, row)}
+                disabled={!row.isWithoutSerialNumber}
+                style={{
+                  margin: 5,
+                  padding: 5,
+                  height: "60%",
+                  width: "50%",
+                  borderWidth: 1,
+                  borderRadius: 5,
+                  borderColor: "#D0DBEA",
+                }}
+              />
+              <ProButton
+                label={
+                  <AntDesign name="pluscircleo" size={16} color="#dedede" />
+                }
+                type="transparent"
+                style={{ width: "15%", borderWidth: 1 }}
+                defaultStyle={{ borderRadius: 5 }}
+                flex={false}
+                onClick={() => increaseQuantity(row)}
+              />
+            </View>
+          );
+          return [
+            <Text>{(currentPage - 1) * pageSize + index + 1}</Text>,
+            ...columns,
+          ];
+        }),
+      });
+    }
+  }, [visibleColumns, product, selectedInvoiceProductsFromModal]);
+
+  useEffect(() => {
+    const columnsConfig =
+      tableSettings?.["SelectFromProductModalForMob"]?.columnsOrder;
+    if (columnsConfig?.length > 0 && columnsConfig !== null) {
+      const parseData = JSON.parse(columnsConfig);
+      const columns = parseData
+        .filter((column) => column.visible === true)
+        .map((column) => column.dataIndex);
+      setVisibleColumns(columns);
+      setTableSettingData(parseData);
+    } else if (columnsConfig == null) {
+      const column = ProductSelectSetting_Table_Data.filter(
+        (column) => column.visible === true
+      ).map((column) => column.dataIndex);
+      setVisibleColumns(column);
+      setTableSettingData(ProductSelectSetting_Table_Data);
+    }
+  }, [tableSettings]);
 
   const increaseQuantity = (row) => {
     if (!row.isWithoutSerialNumber) {
@@ -291,37 +337,19 @@ const SelectFromProductModal = (props) => {
     }
   };
 
-  const handleCheckBox = (event, row) => {
-    if (event) {
-      increaseQuantity(row);
-    } else {
-      decreaseQuantity(row?.id);
-    }
-    setCheckBoxValue((prevQuantities) => ({
-      ...prevQuantities,
-      [row.id]: event,
-    }));
-  };
-
-  const handleChange = (value, field) => {
-    if (value === "") {
-      onFilter(field, undefined);
-      setCurrentPage(1);
-      onFilter("page", 1);
-    }
-  };
-
   const [filter, onFilter, setFilter] = useFilterHandle(
     {
       limit: pageSize,
       page: currentPage,
       businessUnitIds:
-        BUSINESS_TKN_UNIT !== null ? [BUSINESS_TKN_UNIT] : undefined,
+        BUSINESS_TKN_UNIT && BUSINESS_TKN_UNIT !== null
+          ? [BUSINESS_TKN_UNIT]
+          : undefined,
       isDeleted: 0,
       inStock: 1,
       hasBarcode: type === "barcode" ? 1 : undefined,
-      invoiceOperationDate: getValues(
-        !startDate ? "operationDate" : "startDate"
+      invoiceOperationDate: moment(
+        getValues(!startDate ? "operationDate" : "startDate")
       )?.format(fullDateTimeWithSecond),
       stocks:
         type === "barcode"
@@ -329,6 +357,8 @@ const SelectFromProductModal = (props) => {
           : removeStockFilter
           ? null
           : [getValues(!stockTo ? "stockFrom" : "stockTo")],
+      priceInvoiceTypes: applylastPrice ? [2] : undefined,
+      withMinMaxPrice: applylastPrice ? 1 : undefined,
       contacts:
         isCounterparty || isReturnFromConsigmet
           ? [
@@ -374,11 +404,6 @@ const SelectFromProductModal = (props) => {
     return (() => setCurrentPage(value))();
   };
 
-  const handleDefaultFilter = (type, value) => {
-    handlePaginationChange(1);
-    onFilter(type, value);
-  };
-
   const handleQuantityChange = (e, row) => {
     if (!row.isWithoutSerialNumber || e < 0) {
       return;
@@ -395,7 +420,7 @@ const SelectFromProductModal = (props) => {
               if (e === "") {
                 return {
                   ...product,
-                  invoiceQuantity: 0,
+                  invoiceQuantity: "",
                 };
               } else {
                 return {
@@ -426,169 +451,16 @@ const SelectFromProductModal = (props) => {
     }
   };
 
-  const handleSearchSerialNumberFilter = (value) => {
-    handleChange(1);
-    if (value) {
-      onFilter("invoiceProductSerialNumber", value);
-    } else {
-      onFilter("invoiceProductSerialNumber", null);
-    }
-  };
-
   const toggleInvoiceModalWithSN = () => {
     setInvoiceModalWithSN((wasVisible) => !wasVisible);
-  };
-
-  const ajaxStocksSelectRequest = (
-    page = 1,
-    limit = 20,
-    search = "",
-    stateReset = 0,
-    onSuccessCallback
-  ) => {
-    const defaultFilters = {
-      limit,
-      page,
-      q: search,
-      businessUnitIds: BUSINESS_TKN_UNIT ? [BUSINESS_TKN_UNIT] : undefined,
-    };
-    fetchFilteredStocks({
-      filters: defaultFilters,
-      onSuccessCallback: ({ data }) => {
-        const appendList = [];
-
-        if (data) {
-          data.forEach((element) => {
-            appendList.push({
-              id: element.id,
-              name: element.name,
-              ...element,
-            });
-          });
-        }
-        if (onSuccessCallback !== undefined) {
-          onSuccessCallback(!appendList.length);
-        }
-        if (stateReset) {
-          setStocks(appendList);
-        } else {
-          setStocks(stocks.concat(appendList));
-        }
-      },
-    });
-  };
-
-  const ajaxProductsSelectRequest = (
-    page = 1,
-    limit = 20,
-    search = "",
-    stateReset = 0,
-    onSuccessCallback
-  ) => {
-    const defaultFilters = {
-      limit,
-      page,
-      q: search,
-      isDeleted: 0,
-      hasBarcode: type === "barcode" ? 1 : undefined,
-    };
-    fetchProducts({
-      filter: defaultFilters,
-    }).then((productData) => {
-      const appendList = [];
-      if (data.data) {
-        data.data.forEach((element) => {
-          appendList.push({
-            id: element.id,
-            name: element.name,
-            ...element,
-          });
-        });
-      }
-      if (onSuccessCallback !== undefined) {
-        onSuccessCallback(!appendList.length);
-      }
-      if (stateReset) {
-        setProducts(appendList);
-      } else {
-        setProducts(products.concat(appendList));
-      }
-    });
-  };
-
-  const ajaxCatalogsSelectRequest = (
-    page = 1,
-    limit = 20,
-    search = "",
-    stateReset = 0,
-    onSuccessCallback
-  ) => {
-    const defaultFilters = {
-      limit,
-      page,
-      name: search,
-      hasBarcode: type === "barcode" ? 1 : undefined,
-    };
-    fetchFilteredCatalogs(defaultFilters, (data) => {
-      let appendList = {};
-      if (data.data) {
-        appendList = data.data;
-      }
-      if (onSuccessCallback !== undefined) {
-        onSuccessCallback(!Object.keys(appendList).length);
-      }
-      if (stateReset) {
-        setCatalogs(appendList);
-      } else {
-        setCatalogs({
-          ...appendList,
-          root: catalogs.root.concat(appendList.root),
-        });
-      }
-    });
-  };
-
-  const ajaxBrandsSelectRequest = (
-    page = 1,
-    limit = 20,
-    search = "",
-    stateReset = 0,
-    onSuccessCallback
-  ) => {
-    const filters = {
-      limit,
-      page,
-      name: search,
-      hasBarcode: type === "barcode" ? 1 : undefined,
-    };
-    fetchBrands(filters, (data) => {
-      const appendList = [];
-      if (data.data) {
-        data.data.forEach((element) => {
-          appendList.push({
-            id: element.id,
-            name: element.name,
-            ...element,
-          });
-        });
-      }
-      if (onSuccessCallback !== undefined) {
-        onSuccessCallback(!appendList.length);
-      }
-      if (stateReset) {
-        setBrands(appendList);
-      } else {
-        setBrands(brands.concat(appendList));
-      }
-    });
   };
 
   useEffect(() => {
     if (isVisible) {
       setFilter({
         ...filter,
-        invoiceOperationDate: getValues(
-          !startDate ? "date" : "startDate"
+        invoiceOperationDate: moment(
+          getValues(!startDate ? "date" : "startDate")
         )?.format(fullDateTimeWithSecond),
         stocks: removeStockFilter
           ? null
@@ -650,49 +522,28 @@ const SelectFromProductModal = (props) => {
     }
   }, [isVisible, selectedProducts]);
 
-  //   useEffect(() => {
-  //     fetchBusinessUnitList({
-  //       filters: {
-  //         isDeleted: 0,
-  //         businessUnitIds: profile?.businessUnits?.map(({ id }) => id),
-  //       },
-  //     });
-  //     fetchBusinessUnitList({
-  //       filters: {},
-  //       onSuccess: (res) => {
-  //         setAllBusinessUnits(res.data);
-  //       },
-  //     });
-  //     fetchMainCurrency();
-  //   }, []);
+  const handleSaveSettingModal = (column) => {
+    const tableColumn = column
+      .filter((col) => col.visible === true)
+      .map((col) => col.dataIndex);
+    const filterColumn = column.filter((col) => col.dataIndex !== "id");
+    const filterColumnData = JSON.stringify(filterColumn);
 
-  //   useEffect(() => {
-  //     if (componentIsMounted) {
-  //       onFilter(
-  //         "parentCatalogIds",
-  //         parentCatalogs.map((parentCatalog) => parentCatalog.id)
-  //       );
-  //       if (category) {
-  //         handlePaginationChange(1);
-  //       }
-  //     } else {
-  //       setComponentIsMounted(true);
-  //     }
-  //   }, [parentCatalogs]);
+    createSettings({
+      moduleName: "SelectFromProductModalForMob",
+      columnsOrder: filterColumnData,
+    }).then((res) => {
+      const newTableSettings = {
+        ...tableSettings,
+        [`SelectFromProductModalForMob`]: { columnsOrder: filterColumnData },
+      };
+      setTableSettings(newTableSettings);
+    });
+    setVisibleColumns(tableColumn);
+    setTableSettingData(column);
 
-  //   useEffect(() => {
-  //     if (componentIsMounted) {
-  //       onFilter(
-  //         "catalogIds",
-  //         childCatalogs.map((childCatalog) => childCatalog.id)
-  //       );
-  //       if (subcategory) {
-  //         handlePaginationChange(1);
-  //       }
-  //     } else {
-  //       setComponentIsMounted(true);
-  //     }
-  //   }, [childCatalogs]);
+    setSettingVisible(false);
+  };
 
   const confirmModal = () => {
     updateProduct(selectedInvoiceProductsFromModal);
@@ -872,14 +723,258 @@ const SelectFromProductModal = (props) => {
         ),
       ]);
     } else {
-      fetchSalesPrice({
-        filter: {
-          currency: getValues("currency"),
-          contactPrice: contactId,
-          products: selectedProductIds,
-          businessUnitIds: BUSINESS_TKN_UNIT ? [BUSINESS_TKN_UNIT] : undefined,
-        },
-      }).then((priceTypes) => {
+      if (!applylastPrice) {
+        fetchSalesPrice({
+          filter: {
+            currency: getValues("currency"),
+            ...(type === "sales"
+              ? {
+                  stock: getValues("stockFrom"),
+                  manager: getValues("saleManager"),
+                }
+              : []),
+            contactPrice: contactId,
+            products: selectedProductIds,
+            businessUnitIds: BUSINESS_TKN_UNIT
+              ? [BUSINESS_TKN_UNIT]
+              : undefined,
+          },
+        }).then((priceTypes) => {
+          selectedItems.map(
+            (
+              {
+                id,
+                attachmentName,
+                attachmentId,
+                name,
+                quantity,
+                pricePerUnit,
+                serialNumbers,
+                discountPercentage,
+                discountAmount,
+                endPricePerUnit,
+                total,
+                unitOfMeasurementId,
+                originalQuantity,
+                coefficient,
+                unitOfMeasurements,
+                totalEndPrice,
+                productCode,
+                barcode,
+                unitOfMeasurementName,
+                draftRootInvoiceProductId,
+                catalogId,
+                isServiceType,
+                catalogName,
+                brandName,
+                parentCatalogName,
+                isWithoutSerialNumber,
+                bronQuantity,
+                salesDraftQuantity,
+                invoiceQuantity,
+                invoiceProducts,
+                isVatFree,
+                invoicePrice,
+                taxAmountPercentage,
+                defaultSalesPriceInMainCurrency,
+              },
+              index
+            ) => {
+              const productPricesTypeObj = handleProductPriceType(
+                priceTypes[id],
+                unitOfMeasurementId,
+                autofillDiscountPrice
+              );
+              if (selectedProduct[`${id}${unitOfMeasurementId}`]) {
+                selectedProduct[`${id}${unitOfMeasurementId}`] = {
+                  ...selectedProduct[`${id}${unitOfMeasurementId}`],
+                  serialNumbers: serialNumber
+                    ? [
+                        ...selectedProduct[`${id}${unitOfMeasurementId}`]
+                          .serialNumbers,
+                        serialNumber,
+                      ]
+                    : undefined,
+                  invoiceQuantity: `${math.add(
+                    Number(quantity || 0),
+                    selectedProduct[`${id}${unitOfMeasurementId}`]
+                      .invoiceQuantity
+                  )}`.slice(0, 6),
+                  barcode,
+                  attachmentName,
+                  attachmentId,
+                  productId: id,
+                  totalPricePerProduct: math.mul(
+                    Number(invoicePrice || pricePerUnit || 0),
+                    Number(invoiceQuantity || 1)
+                  ),
+                  totalEndPricePerProduct: math.add(
+                    defaultNumberFormat(totalEndPrice || 0),
+                    Number(
+                      selectedProduct[`${id}${unitOfMeasurementId}`]
+                        .totalEndPricePerProduct ?? 0
+                    )
+                  ),
+                  invoiceProducts: [
+                    ...selectedProduct[`${id}${unitOfMeasurementId}`]
+                      .invoiceProducts,
+                    {
+                      invoice_product_id: isDraft
+                        ? draftRootInvoiceProductId
+                        : id,
+                      invoiceQuantity: invoiceQuantity,
+                      originalQuantity: originalQuantity,
+                      quantity: Number(quantity),
+                    },
+                  ],
+                };
+              } else {
+                const invoicePriceNew = autofillDiscountPrice
+                  ? productPricesTypeObj?.invoicePrice
+                    ? Number(productPricesTypeObj?.invoicePrice)
+                    : null
+                  : null;
+
+                selectedProduct[`${id}${unitOfMeasurementId}`] = {
+                  rowOrder: index,
+                  id: id,
+                  productUniqueId: `${id}${unitOfMeasurementId}`,
+                  name: name,
+                  barcode: barcode ?? undefined,
+                  attachmentName: attachmentName,
+                  attachmentId: attachmentId,
+                  serialNumbers: serialNumbers ? serialNumbers : undefined,
+                  quantity: Number(quantity ?? 0),
+                  totalQuantity: Number(quantity || 0),
+                  invoiceQuantity: invoiceQuantity,
+                  unitOfMeasurementName,
+                  productId: id,
+                  hasMultiMeasurement: unitOfMeasurements?.length > 1,
+                  mainUnitOfMeasurementID:
+                    unitOfMeasurements[0]?.unitOfMeasurementId,
+                  discountPercentage: Number(discountPercentage || 0).toFixed(
+                    4
+                  ),
+                  discountAmount: defaultNumberFormat(discountAmount || 0),
+                  discountAmountForBack: defaultNumberFormat(
+                    discountAmount || 0
+                  ),
+                  discountedPrice: defaultNumberFormat(endPricePerUnit || 0),
+                  totalPricePerProduct: math.mul(
+                    Number(invoicePrice || pricePerUnit || 0),
+                    Number(invoiceQuantity || 1)
+                  ),
+                  totalEndPricePerProduct: defaultNumberFormat(
+                    totalEndPrice || 0
+                  ),
+                  unitOfMeasurementId,
+                  unitOfMeasurementID: unitOfMeasurementId,
+                  coefficientRelativeToMain: coefficient,
+                  originalQuantity: originalQuantity,
+                  unitOfMeasurements: [
+                    {
+                      id: unitOfMeasurementId,
+                      unitOfMeasurementName,
+                      coefficient,
+                      coefficientRelativeToMain: coefficient,
+                      barcode,
+                    },
+                    ...(unitOfMeasurements
+                      ?.filter(
+                        (unit) =>
+                          unitOfMeasurementId !== unit?.unitOfMeasurementId
+                      )
+                      ?.map((unit) => ({
+                        ...unit,
+                        id: unit?.unitOfMeasurementId,
+                      })) ?? []),
+                  ],
+                  prices: priceTypes[id],
+                  invoicePrice: productPricesTypeObj?.invoicePrice
+                    ? Number(productPricesTypeObj?.invoicePrice)
+                    : null,
+                  mainInvoicePrice: roundToDown(Number(pricePerUnit), 2),
+                  productPricetype: productPricesTypeObj?.productPriceType,
+                  invoiceProducts:
+                    invoiceProducts?.map((item) => ({
+                      ...item,
+                      invoiceQuantity: item.invoiceQuantity
+                        ? item.invoiceQuantity
+                        : 1,
+                    })) || [],
+                  productCode,
+                  product_code: productCode,
+                  catalog: {
+                    id: catalogId,
+                    name: catalogName,
+                    rootName: parentCatalogName,
+                    isWithoutSerialNumber: isWithoutSerialNumber,
+                    isServiceType,
+                  },
+                  bronQuantity,
+                  salesDraftQuantity,
+                  brandName,
+                  defaultSalesPriceInMainCurrency:
+                    defaultSalesPriceInMainCurrency
+                      ? defaultSalesPriceInMainCurrency
+                      : roundToDown(Number(invoicePrice || pricePerUnit), 2),
+                  isVatFree,
+                  taxAmountPercentage: taxAmountPercentage,
+                  taxAmount: undefined,
+                  totalTaxAmount: undefined,
+                  ...(type === "sales"
+                    ? {
+                        autoDiscountedPrice:
+                          productPricesTypeObj?.discountedPrice,
+                        discountedPrice:
+                          defaultNumberFormat(
+                            productPricesTypeObj?.discountedPrice ??
+                              (invoicePrice && Number(invoicePrice) !== 0)
+                              ? Number(invoicePrice)
+                              : invoicePriceNew ?? 0
+                          ) ?? null,
+                        discountPercentage:
+                          productPricesTypeObj?.discountedPrice
+                            ? math
+                                .mul(
+                                  math.div(
+                                    math.sub(
+                                      invoicePrice && Number(invoicePrice) !== 0
+                                        ? Number(invoicePrice)
+                                        : invoicePriceNew ?? 0,
+                                      productPricesTypeObj?.discountedPrice ?? 0
+                                    ) || 0,
+                                    Number(
+                                      invoicePrice && Number(invoicePrice) !== 0
+                                        ? Number(invoicePrice)
+                                        : invoicePriceNew ?? 0
+                                    ) || 0
+                                  ) || 0,
+                                  100
+                                )
+                                ?.toFixed(4)
+                            : 0,
+                        discountAmount: productPricesTypeObj?.discountedPrice
+                          ? math.sub(
+                              invoicePrice && Number(invoicePrice) !== 0
+                                ? Number(invoicePrice)
+                                : invoicePriceNew ?? 0,
+                              productPricesTypeObj?.discountedPrice ?? 0
+                            )
+                          : 0,
+                      }
+                    : []),
+                };
+              }
+            }
+          );
+          setSelectedProducts([
+            ...Object.values(selectedProduct || {}).sort(
+              (a, b) => a?.rowOrder - b?.rowOrder
+            ),
+          ]);
+        });
+      } else {
         selectedItems.map(
           (
             {
@@ -893,7 +988,7 @@ const SelectFromProductModal = (props) => {
               discountPercentage,
               discountAmount,
               endPricePerUnit,
-              total,
+              lastPrice,
               unitOfMeasurementId,
               originalQuantity,
               coefficient,
@@ -914,9 +1009,9 @@ const SelectFromProductModal = (props) => {
               invoiceQuantity,
               invoiceProducts,
               isVatFree,
-              invoicePrice,
+              coefficientRelativeToMain,
               taxAmountPercentage,
-              defaultSalesPriceInMainCurrency
+              defaultSalesPriceInMainCurrency,
             },
             index
           ) => {
@@ -938,10 +1033,6 @@ const SelectFromProductModal = (props) => {
                 attachmentName,
                 attachmentId,
                 productId: id,
-                totalPricePerProduct: math.mul(
-                  Number(invoicePrice || pricePerUnit || 0),
-                  Number(invoiceQuantity || 1)
-                ),
                 totalEndPricePerProduct: math.add(
                   defaultNumberFormat(totalEndPrice || 0),
                   Number(
@@ -963,15 +1054,19 @@ const SelectFromProductModal = (props) => {
                 ],
               };
             } else {
-              const productPricesTypeObj = handleProductPriceType(
-                priceTypes[id],
-                unitOfMeasurementId
+              const priceTypes = [];
+              const price = math.mul(
+                parseFloat(lastPrice ?? 0),
+                coefficientRelativeToMain ?? 1
               );
+              const productPricesTypeObj = { invoicePrice: price };
+
               const invoicePriceNew = productPricesTypeObj?.invoicePrice
                 ? Number(productPricesTypeObj?.invoicePrice)
                 : null;
 
               selectedProduct[`${id}${unitOfMeasurementId}`] = {
+                lastPrice: lastPrice,
                 rowOrder: index,
                 id: id,
                 productUniqueId: `${id}${unitOfMeasurementId}`,
@@ -993,7 +1088,11 @@ const SelectFromProductModal = (props) => {
                 discountAmountForBack: defaultNumberFormat(discountAmount || 0),
                 discountedPrice: defaultNumberFormat(endPricePerUnit || 0),
                 totalPricePerProduct: math.mul(
-                  Number(invoicePrice || pricePerUnit || 0),
+                  Number(
+                    productPricesTypeObj?.invoicePrice
+                      ? Number(productPricesTypeObj?.invoicePrice)
+                      : null || pricePerUnit || 0
+                  ),
                   Number(invoiceQuantity || 1)
                 ),
                 totalEndPricePerProduct: defaultNumberFormat(
@@ -1022,11 +1121,10 @@ const SelectFromProductModal = (props) => {
                     })) ?? []),
                 ],
                 prices: priceTypes[id],
-                invoicePrice:
-                  invoicePrice && Number(invoicePrice) !== 0
-                    ? Number(invoicePrice)
-                    : invoicePriceNew,
-                mainInvoicePrice: roundToDown(Number(pricePerUnit), 2),
+                invoicePrice: productPricesTypeObj?.invoicePrice
+                  ? Number(productPricesTypeObj?.invoicePrice)
+                  : null,
+                mainInvoicePrice: productPricesTypeObj?.invoicePrice,
                 productPricetype: productPricesTypeObj?.productPriceType,
                 invoiceProducts:
                   invoiceProducts?.map((item) => ({
@@ -1049,7 +1147,12 @@ const SelectFromProductModal = (props) => {
                 brandName,
                 defaultSalesPriceInMainCurrency: defaultSalesPriceInMainCurrency
                   ? defaultSalesPriceInMainCurrency
-                  : roundToDown(Number(invoicePrice || pricePerUnit), 2),
+                  : roundToDown(
+                      Number(
+                        productPricesTypeObj?.invoicePrice || pricePerUnit
+                      ),
+                      2
+                    ),
                 isVatFree,
                 taxAmountPercentage: taxAmountPercentage,
                 taxAmount: undefined,
@@ -1061,8 +1164,9 @@ const SelectFromProductModal = (props) => {
                       discountedPrice:
                         defaultNumberFormat(
                           productPricesTypeObj?.discountedPrice ??
-                            (invoicePrice && Number(invoicePrice) !== 0)
-                            ? Number(invoicePrice)
+                            (productPricesTypeObj?.invoicePrice &&
+                              Number(productPricesTypeObj?.invoicePrice) !== 0)
+                            ? Number(productPricesTypeObj?.invoicePrice)
                             : invoicePriceNew ?? 0
                         ) ?? null,
                       discountPercentage: productPricesTypeObj?.discountedPrice
@@ -1070,14 +1174,20 @@ const SelectFromProductModal = (props) => {
                             .mul(
                               math.div(
                                 math.sub(
-                                  invoicePrice && Number(invoicePrice) !== 0
-                                    ? Number(invoicePrice)
+                                  productPricesTypeObj?.invoicePrice &&
+                                    Number(
+                                      productPricesTypeObj?.invoicePrice
+                                    ) !== 0
+                                    ? Number(productPricesTypeObj?.invoicePrice)
                                     : invoicePriceNew ?? 0,
                                   productPricesTypeObj?.discountedPrice ?? 0
                                 ) || 0,
                                 Number(
-                                  invoicePrice && Number(invoicePrice) !== 0
-                                    ? Number(invoicePrice)
+                                  productPricesTypeObj?.invoicePrice &&
+                                    Number(
+                                      productPricesTypeObj?.invoicePrice
+                                    ) !== 0
+                                    ? Number(productPricesTypeObj?.invoicePrice)
                                     : invoicePriceNew ?? 0
                                 ) || 0
                               ) || 0,
@@ -1087,8 +1197,9 @@ const SelectFromProductModal = (props) => {
                         : 0,
                       discountAmount: productPricesTypeObj?.discountedPrice
                         ? math.sub(
-                            invoicePrice && Number(invoicePrice) !== 0
-                              ? Number(invoicePrice)
+                            productPricesTypeObj?.invoicePrice &&
+                              Number(productPricesTypeObj?.invoicePrice) !== 0
+                              ? Number(productPricesTypeObj?.invoicePrice)
                               : invoicePriceNew ?? 0,
                             productPricesTypeObj?.discountedPrice ?? 0
                           )
@@ -1104,11 +1215,27 @@ const SelectFromProductModal = (props) => {
             (a, b) => a?.rowOrder - b?.rowOrder
           ),
         ]);
-      });
+      }
     }
   };
   return (
     <>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={settingVisible}
+        onRequestClose={() => {
+          setSettingVisible(false);
+        }}
+      >
+        <SettingModal
+          saveSetting={handleSaveSettingModal}
+          setVisible={setSettingVisible}
+          isVisible={settingVisible}
+          columnSource={tableSettingData}
+          AllStandartColumns={ProductSelectSetting_Table_Data}
+        />
+      </Modal>
       {invoiceModalWithSN ? (
         <InvoiceModalWithSN
           stausColumn={true}
@@ -1131,23 +1258,29 @@ const SelectFromProductModal = (props) => {
           </ProText>
           <View
             style={{
-              marginTop: 10,
-              marginBottom: 20,
-              padding: 10,
+              marginTop: 5,
+              marginBottom: 5,
               borderRadius: 4,
               backgroundColor: "#fff",
               display: "flex",
-              gap: 10,
             }}
           >
             <View
-              style={{ display: "flex", alignItems: "flex-end", height: 300 }}
+              style={{ display: "flex", alignItems: "flex-end", height: 400 }}
             >
+              <ProButton
+                label={<AntDesign name="setting" size={18} color="#55ab80" />}
+                type="transparent"
+                onClick={() => setSettingVisible(true)}
+                defaultStyle={{ borderRadius: 5 }}
+                buttonBorder={styles.buttonStyle}
+                flex={false}
+              />
               <ScrollView>
                 <ScrollView
                   nestedScrollEnabled={true}
                   horizontal={true}
-                  style={{ height: "100%" }}
+                  style={{ height: "100%", marginTop: 10 }}
                 >
                   <Table borderStyle={{ borderWidth: 1, borderColor: "white" }}>
                     <Row
@@ -1183,7 +1316,7 @@ const SelectFromProductModal = (props) => {
               />
             </View>
           </View>
-          <View style={{ display: "flex", flexDirection: "row", gap: 10 }}>
+          <View style={{ display: "flex", flexDirection: "row" }}>
             <ProButton
               label={
                 selectedInvoiceProductsFromModal?.length > 0
@@ -1269,6 +1402,14 @@ const styles = StyleSheet.create({
     color: "white",
   },
   text: { margin: 6, fontSize: 14, textAlign: "center" },
+  buttonStyle: {
+    borderWidth: 1,
+    borderColor: "#55ab80",
+    borderRadius: 5,
+    paddingLeft: 12,
+    paddingRight: 12,
+    marginLeft: 14,
+  },
 });
 
 export default SelectFromProductModal;

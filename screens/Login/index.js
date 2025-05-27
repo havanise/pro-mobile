@@ -36,13 +36,15 @@ const Login = ({ navigation }) => {
 
   useEffect(() => {
     if (saved) {
-      checkToken().then((response) => setIsLogged(true));
+      checkToken().then((response) => {
+        setIsLogged(true);
+      });
     }
   }, [saved]);
 
   const [{ email, password, error }, setState] = React.useState({
-    email: "forms@mail.ru",
-    password: "Prospect12@",
+    email: "",
+    password: "",
     error: null,
   });
 

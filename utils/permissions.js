@@ -1075,3 +1075,18 @@ export const permissionsList = {
         group_key: 'messaging',
     },
 };
+
+
+export const getHighestPermissionKey = (selectedPermissions = []) => {
+    let highestPermissionValue = -1;
+    let highestPermissionKey = null;
+
+    selectedPermissions.forEach(selectedPermission => {
+        if (selectedPermission.permission > highestPermissionValue) {
+            highestPermissionValue = selectedPermission.permission;
+            highestPermissionKey = selectedPermission.key;
+        }
+    });
+
+    return highestPermissionKey;
+};

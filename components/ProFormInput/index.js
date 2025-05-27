@@ -1,6 +1,7 @@
 import React, { Fragment } from "react";
 import { Controller } from "react-hook-form";
 import { Text, View, StyleSheet, TextInput } from "react-native";
+import { messages } from "../../utils";
 
 const ProFormInput = ({
   label,
@@ -14,6 +15,13 @@ const ProFormInput = ({
   keyboardType,
   handleChange = () => {},
   suffix = false,
+  maxLength = false,
+  minLength = false,
+  emailRule = false,
+  webSiteRule = false,
+  phoneRule = false,
+  regex = false,
+  checkPositive = false
 }) => {
   return (
     <View
@@ -34,6 +42,40 @@ const ProFormInput = ({
         control={control}
         rules={{
           required: required ? "Bu dəyər boş olmamalıdır" : false,
+          maxLength: maxLength
+            ? {
+                value: maxLength,
+                message: messages.maxtextLimitMessage(maxLength),
+              }
+            : {},
+          minLength: minLength
+            ? {
+                value: minLength,
+                message: messages.mintextLimitMessage(minLength),
+              }
+            : {},
+            validate: value => {
+              if (checkPositive && Number(value) <= 0) {
+                return "Məbləğ 0-dan böyük olmalıdır";
+              }
+              return true;
+            },
+          pattern: emailRule
+            ? {
+                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                message: "Düzgün email daxil edin!",
+              }
+            : webSiteRule
+            ? {
+                value: /^(https?:\/\/)?([\w.-]+)\.([a-z]{2,6})(\/[\w.-]*)*\/?$/,
+                message: "Düzgün vebsayt ünvanı daxil edin!",
+              }
+            : phoneRule
+            ? {
+                value: /^\d{12}$/,
+                message: "Düzgün telefon nömrəsi daxil edin!",
+              }
+            : {},
         }}
         render={({
           field: { value, onChange, onBlur },
@@ -46,7 +88,11 @@ const ProFormInput = ({
                   style={[
                     styles.dropdown,
                     disabled && { backgroundColor: "#ececec" },
-                    {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
+                    {
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    },
                     style && style,
                   ]}
                 >
@@ -57,8 +103,14 @@ const ProFormInput = ({
                     placeholder="Yazın"
                     onBlur={onBlur}
                     onChangeText={(val) => {
-                      onChange(val);
-                      handleChange(val);
+                      if (regex) {
+                        const filteredValue = val.replace(regex, "");
+                        onChange(filteredValue);
+                        handleChange(filteredValue);
+                      } else {
+                        onChange(val);
+                        handleChange(val);
+                      }
                     }}
                     value={value}
                     keyboardType={keyboardType}
@@ -78,8 +130,14 @@ const ProFormInput = ({
                   placeholder="Yazın"
                   onBlur={onBlur}
                   onChangeText={(val) => {
-                    onChange(val);
-                    handleChange(val);
+                    if (regex) {
+                      const newValue = val.replace(regex, "");
+                      onChange(newValue);
+                      handleChange(newValue);
+                    } else {
+                      onChange(val);
+                      handleChange(val);
+                    }
                   }}
                   value={value}
                   keyboardType={keyboardType}

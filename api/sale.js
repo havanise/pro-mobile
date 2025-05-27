@@ -21,6 +21,58 @@ export const fetchProducts = (props) => {
   return client(`/sales/products`, {
     method: "GET",
     filters: props.filter,
+    withResp: props.withResp,
+  });
+};
+
+export const fetchReturnProducts = (prop) => {
+  return client(`/sales/invoices/returnFromCustomer/products`, {
+    method: "GET",
+    filters: Array.isArray(prop) ? prop?.[0]?.filter : prop.filter,
+    withResp: prop.withResp,
+  });
+};
+
+export const fetchProduct = (prop) => {
+  return client(
+    `/sales/product/${Array.isArray(prop) ? prop?.[0]?.apiEnd : prop.apiEnd}`,
+    {
+      method: "GET",
+      filters: Array.isArray(prop) ? prop?.[0]?.filters : prop.filters,
+    }
+  );
+};
+
+export const fetchBarcodeTypes = (prop) => {
+  return client(`/sales/barcode-configurations/2`, {
+    method: "GET",
+    filters: Array.isArray(prop) ? prop?.[0]?.filters : prop.filters,
+  });
+};
+
+export const fetchFreeBarcodeTypes = (prop) => {
+  return client(`/sales/barcode-configurations/1`, {
+    method: "GET",
+    filters: Array.isArray(prop) ? prop?.[0]?.filters : prop.filters,
+  });
+};
+
+export const generateBarcode = (prop) => {
+  return client(
+    `/sales/barcode-configurations/generate/${
+      Array.isArray(prop) ? prop?.[0]?.apiEnd : prop.apiEnd
+    }`,
+    {
+      method: "GET",
+      filters: Array.isArray(prop) ? prop?.[0]?.filters : prop.filters,
+    }
+  );
+};
+
+export const fetchMeasurements = (prop) => {
+  return client(`/sales/product/unitOfMeasurements`, {
+    method: "GET",
+    filters: Array.isArray(prop) ? prop?.[0]?.filters : prop.filters,
   });
 };
 
@@ -31,6 +83,21 @@ export const fetchProductCount = (props) => {
   });
 };
 
+export const createCompositon = async (props) => {
+  console.log(props)
+  return client(`/sales/products/materials/${props.id}`, {
+    method: "POST",
+    data: props.data,
+  });
+};
+
+export const createProduct = async (props) => {
+  return client(`/sales/products`, {
+    method: "POST",
+    data: props.data,
+  });
+};
+
 export const createInvoice = async (props) => {
   return client(`/sales/invoices/${props.type}`, {
     method: "POST",
@@ -38,8 +105,15 @@ export const createInvoice = async (props) => {
   });
 };
 
-export const editInvoice= async (props) => {
+export const editInvoice = async (props) => {
   return client(`/sales/invoices/${props.type}/${props.id}`, {
+    method: "PUT",
+    data: props.data,
+  });
+};
+
+export const editNewReturnInvoice = async (props) => {
+  return client(`/sales/invoices/returnFromCustomer/with-payment/${props.id}`, {
     method: "PUT",
     data: props.data,
   });
@@ -149,7 +223,15 @@ export const fetchCatalogs = (prop) => {
 };
 
 export const fetchSalesCatalogs = (prop) => {
+  console.log('ok22')
   return client(`/sales/product/catalogs`, {
+    method: "GET",
+    filters: prop?.[0]?.filter,
+  });
+};
+
+export const fetchReturnFromCustomerCatalogs = (prop) => {
+  return client(`/sales/invoices/returnFromCustomer/catalogs`, {
     method: "GET",
     filters: prop?.[0]?.filter,
   });
@@ -165,6 +247,16 @@ export const fetchSalesLastInvoice = (prop) => {
 export const fetchProductInvoices = (prop) => {
   return client(
     `/sales/invoices/sales/invoices/${prop?.apiEnd}/${prop?.apiEndTwo}`,
+    {
+      method: "GET",
+      filters: prop?.filter,
+    }
+  );
+};
+
+export const fetchReturnInvoice = (prop) => {
+  return client(
+    `/sales/invoices/returnFromCustomer/invoices/${prop?.apiEnd}/${prop?.apiEndTwo}`,
     {
       method: "GET",
       filters: prop?.filter,
@@ -214,9 +306,22 @@ export const fetchBarterInvoices = (prop) => {
   });
 };
 
-
 export const fetchSalesBuysForms = (prop) => {
   return client(`/data-export/sample-documents`, {
+    method: "GET",
+    filters: Array.isArray(prop) ? prop?.[0]?.filter : prop?.filter,
+  });
+};
+
+export const fetchLabels = (prop) => {
+  return client(`/sales/labels`, {
+    method: "GET",
+    filters: Array.isArray(prop) ? prop?.[0]?.filter : prop?.filter,
+  });
+};
+
+export const fetchCustomerTypes = (prop) => {
+  return client(`/sales/product/productPriceTypes`, {
     method: "GET",
     filters: Array.isArray(prop) ? prop?.[0]?.filter : prop?.filter,
   });

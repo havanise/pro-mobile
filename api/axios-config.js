@@ -7,7 +7,7 @@ let baseURL = "https://devcore.prospectsmb.com/v1";
 // if (process.env.NODE_ENV === 'development') {
 //     baseURL = 'https://devcore.prospectsmb.com/v1';
 // } else {
-//     baseURL = process.env.REACT_APP_API_URL;
+//     baseURL = 'core.prospect.az';
 // }
 const nonAuthRequiredUrls = [
   "/login",
@@ -24,6 +24,7 @@ export const client = async (
     method = data ? "POST" : "GET",
     filters = {},
     headers,
+    withResp = false,
     ...customConfig
   } = {}
 ) => {
@@ -71,12 +72,18 @@ export const client = async (
 
   return axios
     .request(config)
-    .then((res) => res?.data?.data)
+    .then((res) => {
+      if (endPoint.includes("/sales/products") && withResp) {
+        return res?.data;
+      } else {
+        return res?.data?.data;
+      }
+    })
     .catch((error) => {
       const errorMessage = error?.response?.data?.error?.message;
       Toast.show({
         type: "error",
-        text2: errorMessage,
+        text1: errorMessage,
         topOffset: 50,
       });
       if (errorMessage === "Access token is wrong") {

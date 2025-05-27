@@ -1,4 +1,5 @@
 export { apiErrorResolver } from "./apiErrorResolver";
+export { messages } from './messages';
 export {
   storage,
   saveToken,
