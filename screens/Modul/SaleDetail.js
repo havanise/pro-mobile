@@ -9,7 +9,7 @@ import InvoiceContain from "./MoreSaleDetails/InvoiceContain";
 
 import math from "exact-math";
 
-const SaleDetail = ({ isVisible, handleModal, row, allBusinessUnits, profile }) => {
+const SaleDetail = ({ isVisible, handleModal, row, allBusinessUnits, profile, fromFinance = false }) => {
   const [index, setIndex] = useState(0);
   const [detailsData, setDetailsData] = useState([]);
   const [tableDatas, setTableDatas] = useState([]);
@@ -85,6 +85,7 @@ const SaleDetail = ({ isVisible, handleModal, row, allBusinessUnits, profile }) 
             details={detailsData}
             tableDatas={tableDatas}
             warehouseData={warehouseData}
+            fromFinance={fromFinance}
           ></InvoiceContain>
         );
       default:

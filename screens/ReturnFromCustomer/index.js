@@ -2177,53 +2177,6 @@ const SecondRoute = (props) => {
           },
         }).then((data) => {
           if (data?.length) {
-            // const currentProducts = data?.map((product) => {
-            //   const multiMeasurementProducts =
-            //     product?.unitOfMeasurements?.length > 0
-            //       ? product?.unitOfMeasurements?.map((item) => {
-            //           return {
-            //             ...product,
-            //             name: product?.name,
-            //             unitOfMeasurementId: item?.unitOfMeasurementId,
-            //             unitOfMeasurementName: item?.unitOfMeasurementName,
-            //             mainUnitOfMeasurementId: product?.unitOfMeasurementId,
-            //             mainUnitOfMeasurementName:
-            //               product?.unitOfMeasurementName,
-            //             coefficientRelativeToMain:
-            //               item?.coefficientRelativeToMain,
-            //             originalQuantity: product?.quantity,
-            //             totalQuantity: product?.quantity,
-            //             quantity: math.div(
-            //               product?.quantity || 0,
-            //               item?.coefficientRelativeToMain || 1
-            //             ),
-            //             withoutQuantity:
-            //               product?.unitOfMeasurementId &&
-            //               math.div(
-            //                 product?.quantity || 0,
-            //                 item?.coefficientRelativeToMain || 1
-            //               ) == 0,
-            //             id: product?.id,
-            //             catalog: {
-            //               id: product?.catalogId,
-            //               isServiceType: product?.isServiceType,
-            //               isWithoutSerialNumber: product?.isWithoutSerialNumber,
-            //               name: product?.catalogName,
-            //               rootName: product?.parentCatalogName,
-            //             },
-            //           };
-            //         })
-            //       : [];
-            //   const mainProducts = {
-            //     ...product,
-            //     coefficientRelativeToMain: 1,
-            //     originalQuantity: product?.quantity,
-            //     totalQuantity: product?.quantity,
-            //     withoutQuantity:
-            //       product?.unitOfMeasurementId && product?.quantity == 0,
-            //   };
-            //   return [mainProducts, ...multiMeasurementProducts];
-            // });
             const productData = isScroll
               ? [...productsByName, ...data]
               : [...data];
@@ -2243,7 +2196,7 @@ const SecondRoute = (props) => {
                         ? ` (${formatNumberToLocale(
                             defaultNumberFormat(
                               math.div(
-                                Number(product?.totalQuantity || 0),
+                                Number(product?.quantity || 0),
                                 Number(product?.coefficientRelativeToMain || 1)
                               ) || 0
                             )

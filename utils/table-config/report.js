@@ -311,3 +311,83 @@ export const PRODUCT_TABLE_SETTING_DATA = [
     fixed: false,
   },
 ];
+
+export const PRODUCT_VIEW_TABLE_SETTING_DATA = [
+  {
+    name: "Tarix",
+    dataIndex: "operationDate",
+    standart: true,
+    visible: true,
+    fixed: false,
+  },
+  {
+    name: "Qarşı tərəf",
+    dataIndex: "counterparty",
+    standart: true,
+    visible: true,
+    fixed: false,
+  },
+  {
+    name: "Qaimə",
+    dataIndex: "invoiceNumber",
+    standart: true,
+    visible: true,
+    fixed: false,
+  },
+  {
+    name: "Say",
+    dataIndex: "invoiceProductQuantities",
+    standart: true,
+    visible: true,
+    fixed: false,
+  },
+  {
+    name: "Müqavilə",
+    dataIndex: "contractNo",
+    standart: true,
+    visible: true,
+    fixed: false,
+  },
+  {
+    name: "Mənfəət mərkəzi",
+    dataIndex: "attachedInvoiceNumber",
+    standart: true,
+    visible: true,
+    fixed: false,
+  },
+  {
+    name: "Məbləğ",
+    dataIndex: "endPrice",
+    standart: true,
+    visible: true,
+    fixed: false,
+  },
+  {
+    name: "Məbləğ (Əsas valyuta)",
+    dataIndex: "endPriceInMainCurrency",
+    standart: true,
+    visible: true,
+    fixed: false,
+  },
+  {
+    name: "Menecer",
+    dataIndex: "salesmanName",
+    standart: true,
+    visible: true,
+    fixed: false,
+  },
+  {
+    name: "İcra statusu",
+    dataIndex: "statusName",
+    standart: true,
+    visible: true,
+    fixed: false,
+  },
+  {
+    name: "Seç",
+    dataIndex: "actions",
+    standart: true,
+    visible: true,
+    fixed: false,
+  },
+];

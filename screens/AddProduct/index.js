@@ -325,7 +325,6 @@ const FirstRoute = (props) => {
                       flexDirection: "row",
                     }}
                   >
-                    <Text style={{ marginRight: 5 }}>Avto generasiya</Text>
                     <Checkbox
                       onValueChange={(event) =>
                         handleAutoGenerateCheckbox(event)
@@ -333,6 +332,7 @@ const FirstRoute = (props) => {
                       value={autoGenerate}
                       style={{ marginLeft: "8px" }}
                     />
+                    <Text style={{ marginLeft: 5 }}>Avto generasiya</Text>
                   </View>
                   <View>
                     <ProAsyncSelect
@@ -447,7 +447,7 @@ const FirstRoute = (props) => {
                     name="barcode"
                     control={control}
                     minLength={3}
-                    width="55%"
+                    width="50%"
                     disabled={autoGenerate}
                     maxLength={
                       getValues("barcodeType") === 1
@@ -467,13 +467,13 @@ const FirstRoute = (props) => {
                         flexDirection: "row",
                       }}
                     >
-                      <Text style={{ marginRight: 3 }}>Avto generasiya</Text>
                       <Checkbox
                         onValueChange={(event) =>
                           handleAutoGenerateCheckbox(event)
                         }
                         value={autoGenerate}
                       />
+                      <Text style={{ marginLeft: 3 }}>Avto generasiya</Text>
                     </View>
                     <View>
                       <ProAsyncSelect
@@ -1105,13 +1105,10 @@ const AddProduct = ({
     );
 
   const handleCreateInvoice = (id, newProduct, catalog) => {
-    console.log("23");
     let newPurchaseInvoice = {};
     newPurchaseInvoice = {
       products_ul: handleSelectedProducts(selectedProducts),
     };
-
-    console.log(newPurchaseInvoice);
 
     createCompositon({
       id: id,
@@ -1262,8 +1259,6 @@ const AddProduct = ({
         unitOfMeasurements_ul: [],
       };
 
-      console.log(newProduct, "newProduct");
-
       createProduct({
         data: newProduct,
       })
@@ -1330,7 +1325,7 @@ const AddProduct = ({
 
     if (productCode) {
       fetchProducts({
-        filters: {
+        filter: {
           product_code_equal: productCode || "",
           isDeleted: 0,
         },
@@ -1343,7 +1338,6 @@ const AddProduct = ({
         }
       });
     } else {
-      console.log(values, "values");
       createNewProduct(values);
     }
   };
@@ -1434,7 +1428,25 @@ const AddProduct = ({
     <SafeAreaProvider>
       <ProWarningModal
         open={openWarningModal}
-        bodyContent={modalData}
+        bodyContent={
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              paddingLeft: "80px",
+              paddingTop: "15px",
+            }}
+          >
+            {modalData.map((item, index) => {
+              return (
+                <Text>
+                  {`${index + 1}. ${item.name} (${item.productCode})`}
+                </Text>
+              );
+            })}
+          </View>
+        }
         continueText="Davam et"
         okFunc={() => {
           createNewProduct(getValues());

@@ -73,7 +73,7 @@ export const client = async (
   return axios
     .request(config)
     .then((res) => {
-      if (endPoint.includes("/sales/products") && withResp) {
+      if ((endPoint.includes("/sales/products") || endPoint.includes("/sales/invoices")) && withResp) {
         return res?.data;
       } else {
         return res?.data?.data;

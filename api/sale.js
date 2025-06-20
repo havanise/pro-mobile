@@ -83,6 +83,13 @@ export const fetchProductCount = (props) => {
   });
 };
 
+export const getCompositon = async (prop) => {
+  return client(`/sales/products/materials/${Array.isArray(prop) ? prop?.[0]?.id : prop.id}`, {
+    method: "GET",
+    data: Array.isArray(prop) ? prop?.[0]?.filters : prop.filters,
+  });
+};
+
 export const createCompositon = async (props) => {
   console.log(props)
   return client(`/sales/products/materials/${props.id}`, {
@@ -223,7 +230,6 @@ export const fetchCatalogs = (prop) => {
 };
 
 export const fetchSalesCatalogs = (prop) => {
-  console.log('ok22')
   return client(`/sales/product/catalogs`, {
     method: "GET",
     filters: prop?.[0]?.filter,
@@ -268,6 +274,7 @@ export const fetchSalesInvoiceList = (prop) => {
   return client(`/sales/invoices`, {
     method: "GET",
     filters: Array.isArray(prop) ? prop?.[0]?.filter : prop?.filter,
+    withResp: prop.withResp,
   });
 };
 

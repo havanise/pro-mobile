@@ -239,6 +239,7 @@ const ProAsyncSelect = ({
             }}
             onChange={(item) => {
               setMultiSelected(item);
+              console.log(item, "item")
               handleSelectValue({ list: item, id: item[item.length - 1] });
               setIsFocus(false);
               if (async && nextPage !== 1) {

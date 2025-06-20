@@ -33,9 +33,9 @@ const FooterRow = ({
   color = "#7c7c7c",
 }) => (
   <View style={styles.opInvoiceContentFooter}>
-    <Text style={{ color: color}}>{primary}</Text>
-    <Text style={{ color: color}}>{originalQuantity}</Text>
-    <Text style={{ color: color}}>{secondary}</Text>
+    <Text style={{ color: color }}>{primary}</Text>
+    <Text style={{ color: color }}>{originalQuantity}</Text>
+    <Text style={{ color: color }}>{secondary}</Text>
   </View>
 );
 
@@ -66,7 +66,7 @@ const HeaderItem = ({ gutterBottom = true, name, secondary, children }) => (
   </View>
 );
 
-const InvoiceContain = ({ details, tableDatas, warehouseDetails }) => {
+const InvoiceContain = ({ details, tableDatas, fromFinance }) => {
   const [data, setData] = useState(tableData);
   const {
     invoiceType,
@@ -105,52 +105,108 @@ const InvoiceContain = ({ details, tableDatas, warehouseDetails }) => {
   };
 
   useEffect(() => {
-    setData({
-      ...data,
-      tableData: tableDatas.map(
-        (
-          {
-            productName,
-            invoicePrice,
-            pricePerUnit,
-            originalQuantity,
-            usedQuantity,
-            serialNumber,
-            unitOfMeasurementName,
-            total,
-            currencyCode,
-          },
-          index
-        ) => {
-          return [
-            index + 1,
-            productName,
-            <Text>{`${formatNumberToLocale(
-              defaultNumberFormat(pricePerUnit)
-            )} ${currencyCode}`}</Text>,
-            <Text>
-              {formatNumberToLocale(
-                defaultNumberFormat(Number(originalQuantity || 0))
-              )}
-            </Text>,
-            <Text>
-              {formatNumberToLocale(defaultNumberFormat(usedQuantity))}
-            </Text>,
-            <Text>{serialNumber ? serialNumber : "-"}</Text>,
-            <Text>{unitOfMeasurementName}</Text>,
-            <Text>{`${formatNumberToLocale(
-              defaultNumberFormat(
-                math.mul(
-                  Number(pricePerUnit || 0),
-                  Number(originalQuantity || 0)
+    if (fromFinance) {
+      const newHead = [...tableData.tableHead];
+      newHead.splice(4, 0, "Daxil olma");
+
+      const newWidth = [...tableData.widthArr];
+      newWidth.splice(4, 0, 140);
+
+      setData({
+        widthArr: newWidth,
+        tableHead: newHead,
+        tableData: tableDatas.map(
+          (
+            {
+              productName,
+              rootInvoiceNumber,
+              pricePerUnit,
+              originalQuantity,
+              usedQuantity,
+              serialNumber,
+              unitOfMeasurementName,
+              total,
+              currencyCode,
+            },
+            index
+          ) => {
+            return [
+              index + 1,
+              productName,
+              <Text>{`${formatNumberToLocale(
+                defaultNumberFormat(pricePerUnit)
+              )} ${currencyCode}`}</Text>,
+              <Text>
+                {formatNumberToLocale(
+                  defaultNumberFormat(Number(originalQuantity || 0))
+                )}
+              </Text>,
+              <Text>{rootInvoiceNumber}</Text>,
+              <Text>
+                {formatNumberToLocale(defaultNumberFormat(usedQuantity))}
+              </Text>,
+              <Text>{serialNumber ? serialNumber : "-"}</Text>,
+              <Text>{unitOfMeasurementName}</Text>,
+              <Text>{`${formatNumberToLocale(
+                defaultNumberFormat(
+                  math.mul(
+                    Number(pricePerUnit || 0),
+                    Number(originalQuantity || 0)
+                  )
                 )
-              )
-            )} ${currencyCode} `}</Text>,
-          ];
-        }
-      ),
-    });
-  }, [tableDatas]);
+              )} ${currencyCode} `}</Text>,
+            ];
+          }
+        ),
+      });
+    } else {
+      setData({
+        ...data,
+        tableData: tableDatas.map(
+          (
+            {
+              productName,
+              invoicePrice,
+              pricePerUnit,
+              originalQuantity,
+              usedQuantity,
+              serialNumber,
+              unitOfMeasurementName,
+              total,
+              currencyCode,
+            },
+            index
+          ) => {
+            return [
+              index + 1,
+              productName,
+              <Text>{`${formatNumberToLocale(
+                defaultNumberFormat(pricePerUnit)
+              )} ${currencyCode}`}</Text>,
+              <Text>
+                {formatNumberToLocale(
+                  defaultNumberFormat(Number(originalQuantity || 0))
+                )}
+              </Text>,
+              <Text>
+                {formatNumberToLocale(defaultNumberFormat(usedQuantity))}
+              </Text>,
+              <Text>{serialNumber ? serialNumber : "-"}</Text>,
+              <Text>{unitOfMeasurementName}</Text>,
+              <Text>{`${formatNumberToLocale(
+                defaultNumberFormat(
+                  math.mul(
+                    Number(pricePerUnit || 0),
+                    Number(originalQuantity || 0)
+                  )
+                )
+              )} ${currencyCode} `}</Text>,
+            ];
+          }
+        ),
+      });
+    }
+  }, [tableDatas, fromFinance]);
 
   return (
     <View style={{ marginTop: 20 }}>
@@ -356,7 +412,7 @@ const styles = StyleSheet.create({
   opInvoiceContentFooter: {
     width: "100%",
     display: "flex",
-    flexDirection: 'row',
+    flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 20,
   },

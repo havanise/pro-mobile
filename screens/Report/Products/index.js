@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from "@react-navigation/native";
 import {
   View,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
+  TouchableOpacity,
 } from "react-native";
 import { Table, Row } from "react-native-reanimated-table";
 import { filter as filterLodash } from "lodash";
@@ -35,11 +36,17 @@ import {
 import math from "exact-math";
 import FilterModal from "./FilterModal";
 import { fetchProduct } from "../../../api/sale";
+import ProductDetail from "./ProductDetail";
 
 const Products = (props) => {
   const isFocused = useIsFocused();
-  const { allBusinessUnits, mainCurrency, setTableSettings, tableSettings, navigation } =
-    props;
+  const {
+    allBusinessUnits,
+    mainCurrency,
+    setTableSettings,
+    tableSettings,
+    navigation,
+  } = props;
   const [data, setData] = useState({
     tableHead: [],
     widthArr: [],
@@ -59,6 +66,9 @@ const Products = (props) => {
   const [priceNames, setPriceNames] = useState([]);
   const [lastRow, setLastRow] = useState([]);
   const [products, setProducts] = useState([]);
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedRow, setSelectedRow] = useState({});
   const [productUnitOfMeasurements, setProductUnitOfMeasurements] = useState(
     []
   );
@@ -759,6 +769,17 @@ const Products = (props) => {
     onFilter("page", value);
     return (() => setCurrentPage(value))();
   };
+
+  const handleLongPress = (row, index) => {
+    const updatedSelectedRow = { ...row, index: index };
+    setSelectedRow(updatedSelectedRow);
+    setModalVisible(true);
+  };
+
+  const handleView = (row) => {
+    setShowModal(true);
+  };
+
   return (
     <>
       <FilterModal
@@ -769,6 +790,23 @@ const Products = (props) => {
         setFilter={setFilter}
         onBlur={props.onBlur}
       />
+      {showModal && (
+        <ProductDetail
+          isVisible={showModal}
+          handleModal={(isSubmit = false) => {
+            if (isSubmit) {
+              console.log("ok");
+            }
+
+            setShowModal(false);
+          }}
+          allBusinessUnits={allBusinessUnits}
+          // profile={profile}
+          // tenant={tenant}
+          row={selectedRow}
+          mainCurrency={mainCurrency}
+        />
+      )}
       <Modal animationType="slide" transparent={true} visible={exportModal}>
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
@@ -900,13 +938,21 @@ const Products = (props) => {
                       textStyle={styles.headText}
                     />
                     {data?.tableData?.map((rowData, index) => (
-                      <Row
+                      <TouchableOpacity
                         key={index}
-                        data={rowData}
-                        widthArr={data.widthArr}
-                        style={styles.rowSection}
-                        textStyle={styles.text}
-                      />
+                        onLongPress={() =>
+                          handleLongPress(products[index], index)
+                        }
+                        delayLongPress={1500}
+                      >
+                        <Row
+                          key={index}
+                          data={rowData}
+                          widthArr={data.widthArr}
+                          style={styles.rowSection}
+                          textStyle={styles.text}
+                        />
+                      </TouchableOpacity>
                     ))}
                     <Row
                       data={lastRow}
@@ -914,6 +960,50 @@ const Products = (props) => {
                       style={styles.footer}
                       textStyle={styles.headText}
                     />
+                    <Modal
+                      visible={isModalVisible}
+                      transparent
+                      animationType="slide"
+                      onRequestClose={() => setModalVisible(false)}
+                    >
+                      <TouchableOpacity
+                        style={styles.overlay}
+                        activeOpacity={1}
+                        onPress={() => {
+                          setModalVisible(false);
+                        }}
+                        pointerEvents="box-none"
+                      >
+                        <View
+                          style={[
+                            styles.modalContainer,
+                            { zIndex: 10, elevation: 10 },
+                          ]}
+                        >
+                          <Text style={styles.viewModalHeading}>
+                            {selectedRow?.name}
+                          </Text>
+                          <View style={styles.modalContent}>
+                            <TouchableOpacity
+                              style={styles.iconButton}
+                              onPress={() => {
+                                handleView();
+                              }}
+                              onLongPress={() => {
+                                handleView();
+                              }}
+                            >
+                              <AntDesign
+                                name="eyeo"
+                                size={24}
+                                color="black"
+                                style={{ padding: 5 }}
+                              />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    </Modal>
                   </Table>
                 </ScrollView>
               </ScrollView>
@@ -952,6 +1042,28 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     paddingRight: 12,
     marginLeft: 14,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent background for focus effect
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    backgroundColor: "white",
+    padding: 10,
+    borderRadius: 10,
+  },
+  viewModalHeading: {
+    fontWeight: "bold",
+    marginBottom: 15,
+  },
+  modalContent: {
+    gap: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    position: "relative",
   },
   buttonTabStyle: {
     borderWidth: 1,

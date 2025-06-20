@@ -6,12 +6,7 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  Alert,
-  useWindowDimensions,
-  ScrollView,
   Text,
-  Modal,
-  ActivityIndicator,
   Pressable,
 } from "react-native";
 import ProText from "../ProText";

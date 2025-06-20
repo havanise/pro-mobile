@@ -90,7 +90,9 @@ const AddInvoiceFilterModal = ({
                 <Text>Biznes blok</Text>
                 <ProAsyncSelect
                   isMulti
-                  defaultValue={filters.businessUnitIds}
+                  defaultValue={filters.businessUnitIds?.map((item) => {
+                        return item === 0 ? null : item;
+                      })}
                   data={filterDuplicates(
                     invoice?.map((item) => ({
                       id:
@@ -105,12 +107,18 @@ const AddInvoiceFilterModal = ({
                         item.business_unit_name === null
                           ? allBusinessUnits[0]?.name
                           : item.business_unit_name,
+                      label:
+                        item.business_unit_name === null
+                          ? allBusinessUnits[0]?.name
+                          : item.business_unit_name,
                     }))
                   )}
                   filter={{}}
                   notForm
                   handleSelectValue={({ list }) => {
-                    updateFilter("businessUnitIds", list);
+                    updateFilter("businessUnitIds", list.map((item) => {
+                        return item === null ? 0 : item;
+                      }));
                   }}
                 />
               </View>

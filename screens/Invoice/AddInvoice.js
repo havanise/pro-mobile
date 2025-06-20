@@ -1186,7 +1186,6 @@ const AddInvoice = ({
     let order;
     const config = userSettings?.dateSortingConfig;
     if (config) order = JSON.parse(config).orderConfig;
-
     const hasDebt = [1, 3].includes(checkType) ? 1 : undefined;
     const hasTaxDebt = [2, 3].includes(checkType) ? 1 : undefined;
     const filters = {
@@ -1204,7 +1203,16 @@ const AddInvoice = ({
       description: !isNil(invFilters)
         ? invFilters.description
         : invoiceFilters.description,
-      fromPayment: 1,
+      businessUnitIds: !isNil(invFilters)
+        ? invFilters.businessUnitIds
+        : invoiceFilters.businessUnitIds,
+      fromPayment: (
+        !isNil(invFilters)
+          ? invFilters.businessUnitIds
+          : invoiceFilters.businessUnitIds
+      )
+        ? undefined
+        : 1,
       sort: order ? order : undefined,
       orderBy: order ? "operationDate" : undefined,
     };
@@ -1266,7 +1274,7 @@ const AddInvoice = ({
       ),
     }));
     setFieldsValue("currency", checkList.checkedListAll?.[0]?.currencyId);
-    setFieldsValue("invoice", undefined)
+    setFieldsValue("invoice", undefined);
     setInvoicesAddedFromModal(true);
     setSelectedInvoices(checkList.checkedListAll);
     setPayCurrencyForEdit(values.currency);
@@ -1290,6 +1298,7 @@ const AddInvoice = ({
           }}
           row={selectedRow}
           allBusinessUnits={allBusinessUnits}
+          fromFinance={true}
           profile={profile}
         />
       ) : null}

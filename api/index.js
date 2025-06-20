@@ -49,7 +49,8 @@ export {
   fetchFreeBarcodeTypes,
   generateBarcode,
   createProduct,
-  createCompositon
+  createCompositon,
+  getCompositon,
 } from "./sale";
 
 export { fetchReportList } from "./reports";
@@ -78,7 +79,7 @@ export {
   fetchTransactionsCount,
   getExpenseCatalogs,
   deleteTransaction,
-  fetchGroupedTransaction
+  fetchGroupedTransaction,
 } from "./transactions";
 
 export { fetchFilteredUnitCashbox } from "./business-unit";

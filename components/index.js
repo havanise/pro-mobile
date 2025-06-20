@@ -6,6 +6,7 @@ import ProButton from "./ProButton";
 import ProSpacer from "./ProSpacer";
 import ProAsyncSelect from "./ProAsyncSelect";
 import ProDateTimePicker from "./ProDateTimePicker";
+import ProDateRange from "./ProDateRange";
 import ProStageDynamicColor from "./ProStageDynamicColor";
 import ProTooltip from "./ProTooltip";
 import ProFormInput from "./ProFormInput";
@@ -15,8 +16,8 @@ import SettingModal from "./SettingModal";
 import PaymentType from "./PaymentType";
 import PaymentRow from "./PaymentRow";
 import BronModal from "./BronModal";
-import ProWarningModal from "./ProWarningModal"
-import Email from './Email'
+import ProWarningModal from "./ProWarningModal";
+import Email from "./Email";
 
 export {
   ProInput,
@@ -36,5 +37,6 @@ export {
   PaymentRow,
   BronModal,
   ProWarningModal,
-  Email
+  Email,
+  ProDateRange,
 };
