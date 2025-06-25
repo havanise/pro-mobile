@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image
 } from "react-native";
 import Entypo from "@expo/vector-icons/Entypo";
 import { FontAwesome } from "@expo/vector-icons";
@@ -182,12 +183,12 @@ const ProductDetails = (props) => {
           secondary={
             !isEmpty(row?.roadTaxes) ? (
               <>
-                <span>
+                <Text>
                   {formatNumberToLocale(
                     defaultNumberFormat(row?.roadTaxes?.[0]?.amount)
                   )}{" "}
                   {row?.roadTaxes[0]?.currencyCode}
-                </span>
+                </Text>
                 {filter(row?.roadTaxes, (_, index) => index !== 0)?.length >
                 0 ? (
                   <ProTooltip

@@ -36,12 +36,12 @@ const Forms = (props) => {
     // devcore.prospectsmb.com/v1
     // core.prospect.az/v1
     const url = fromFinance
-      ? `https://devcore.prospectsmb.com/v1/transactions/exportToWord/${row.cashboxTransactionMoneyId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
+      ? `https://core.prospect.az/v1/transactions/exportToWord/${row.cashboxTransactionMoneyId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
       : fromContract
-      ? `https://devcore.prospectsmb.com/v1/sales/contracts/export/${docId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
+      ? `https://core.prospect.az/v1/sales/contracts/export/${docId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
       : fromStockStatus
-      ? `https://devcore.prospectsmb.com/v1/sales/stock-statuses/export/${docId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
-      : `https://devcore.prospectsmb.com/v1/sales/invoices/export/invoice/${docId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`;
+      ? `https://core.prospect.az/v1/sales/stock-statuses/export/${docId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
+      : `https://core.prospect.az/v1/sales/invoices/export/invoice/${docId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`;
 
     try {
       await Print.printAsync({ uri: url });

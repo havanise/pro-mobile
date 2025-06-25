@@ -3074,36 +3074,27 @@ const SecondRoute = (props) => {
     }
   };
 
-  // useEffect(() => {
-  //   const totalPrice = Number(
-  //     selectedProducts.reduce(
-  //       (totalPrice, { totalPricePerProduct }) =>
-  //         math.add(totalPrice, Number(totalPricePerProduct || 0)),
-  //       0
-  //     ) || 0
-  //   );
-  //   let newEndPrice = roundTo(Number(totalPrice || 0), 4);
+  useEffect(() => {
+    const totalPrice = Number(
+      selectedProducts.reduce(
+        (totalPrice, { totalPricePerProduct }) =>
+          math.add(totalPrice, Number(totalPricePerProduct || 0)),
+        0
+      ) || 0
+    );
+    let newEndPrice = roundTo(Number(totalPrice || 0), 4);
 
-  //   if (totalPrice && discount.amount) {
-  //     newEndPrice = roundTo(
-  //       math.sub(Number(totalPrice) || 0, Number(discount.amount || 0)),
-  //       4
-  //     );
-  //     handleAutoDiscountChange(Number(discount.amount) || 0, totalPrice);
-  //   } else if (discount.amount) {
-  //     newEndPrice = 0;
-  //   }
+    if (totalPrice && discount.amount) {
+      newEndPrice = roundTo(
+        math.sub(Number(totalPrice) || 0, Number(discount.amount || 0)),
+        4
+      );
+    } else if (discount.amount) {
+      newEndPrice = 0;
+    }
 
-  //   setEndPrice(Number(newEndPrice || 0));
-  //   // setEndPrice(math.add(Number(newEndPrice || 0), totalTaxRoadPrice));
-  //   if (Number(discount.percentage) === 100) {
-  //     setVat({
-  //       percentage: null,
-  //       amount: null,
-  //     });
-  //     return;
-  //   }
-  // }, [selectedProducts, discount.amount]);
+    setEndPrice(Number(newEndPrice || 0));
+  }, [selectedProducts, discount.amount]);
 
   useEffect(() => {
     const totalPrice = Number(

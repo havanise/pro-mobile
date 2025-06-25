@@ -374,7 +374,6 @@ const IncomeInvoice = (props) => {
   }, [visibleColumns, details]);
 
   const handleFilters = (filters) => {
-    console.log(filters)
     setFilters((prevFilters) => ({
       ...prevFilters,
       ...filters,
@@ -461,24 +460,30 @@ const IncomeInvoice = (props) => {
           flex={false}
         />
       </View>
-      <ScrollView style={{ marginTop: 15 }} horizontal={true}>
-        <Table borderStyle={{ borderWidth: 1, borderColor: "white" }}>
-          <Row
-            data={data.tableHead}
-            widthArr={data.widthArr}
-            style={styles.head}
-            textStyle={styles.headText}
-          />
-          {data.tableData.map((rowData, index) => (
+      <ScrollView style={{ marginTop: 15 }}>
+        <ScrollView
+          nestedScrollEnabled={true}
+          horizontal={true}
+          style={{ height: "100%" }}
+        >
+          <Table borderStyle={{ borderWidth: 1, borderColor: "white" }}>
             <Row
-              key={index}
-              data={rowData}
+              data={data.tableHead}
               widthArr={data.widthArr}
-              style={styles.rowSection}
-              textStyle={styles.text}
+              style={styles.head}
+              textStyle={styles.headText}
             />
-          ))}
-        </Table>
+            {data.tableData.map((rowData, index) => (
+              <Row
+                key={index}
+                data={rowData}
+                widthArr={data.widthArr}
+                style={styles.rowSection}
+                textStyle={styles.text}
+              />
+            ))}
+          </Table>
+        </ScrollView>
       </ScrollView>
       <View
         style={{
@@ -494,7 +499,7 @@ const IncomeInvoice = (props) => {
           {getInvoice(details).unitOfMeasurementName}
         </Text>
       </View>
-      <View style={{ marginBottom: 25 }}>
+      <View>
         <Pagination
           totalItems={invoiceCount}
           pageSize={pageSize}
@@ -503,7 +508,7 @@ const IncomeInvoice = (props) => {
           textStyle={{ fontSize: 6 }}
         />
       </View>
-      <View style={{ marginTop: 30 }}>
+      <View style={{ marginTop: 20 }}>
         {priceTypes?.map((price) => (
           <View
             style={{

@@ -141,7 +141,7 @@ const IncomeInvoiceFilterModal = ({
               </View> */}
               <View style={{ display: "flex", flexDirection: "column" }}>
                 <Text>Tarix</Text>
-                <ProDateRange onChange={setDates} />
+                <ProDateRange onChange={setDates} dates={dates} />
               </View>
               <View
                 style={{

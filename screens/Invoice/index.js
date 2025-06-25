@@ -240,7 +240,7 @@ const Invoice = ({ navigation, route }) => {
                 ? Number(mustVatPay ?? 0) || Number(mustPay)
                 : Number(mustPay)
             )
-          : Number(paymentAmount ?? 0),
+          : [Number(paymentAmount ?? 0)],
       currencies_ul:
         selectedInvoices?.length > 1
           ? selectedInvoices.map((item) => currency)

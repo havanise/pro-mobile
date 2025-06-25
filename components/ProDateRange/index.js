@@ -14,11 +14,11 @@ import dayjs from "dayjs";
 import moment from "moment";
 import { fullDateTimeWithSecond } from "../../utils";
 
-const ProDateRange = ({ onChange }) => {
+const ProDateRange = ({ onChange, dates }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [activeField, setActiveField] = useState("start"); // 'start' | 'end'
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState(dates.startDate || null);
+  const [endDate, setEndDate] = useState(dates.endDate || null);
   const [mode, setMode] = useState("date");
 
   const openPicker = (field) => {
