@@ -2032,11 +2032,11 @@ const FirstRoute = (props) => {
                   Silinmə, Xərc və ƏH sənədləri qorunsun və "Baş ofis" xərc
                   mərkəzinə bağlansın.
                 </Text>
-                <RadioButton value={0} />
+                <RadioButton.Android value={0} />
               </View>
               <View>
                 <Text>Silinmə, Xərc və ƏH sənədləri avtomatik silinsin.</Text>
-                <RadioButton value={1} />
+                <RadioButton.Android value={1} />
               </View>
             </RadioButton.Group>
             <View

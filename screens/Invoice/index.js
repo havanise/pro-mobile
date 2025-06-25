@@ -1468,7 +1468,7 @@ const Invoice = ({ navigation, route }) => {
                   alignItems: "center",
                 }}
               >
-                <RadioButton
+                <RadioButton.Android
                   value="advance"
                   status={
                     checkedAdvance === "advance" ? "checked" : "unchecked"
@@ -1484,7 +1484,7 @@ const Invoice = ({ navigation, route }) => {
                   alignItems: "center",
                 }}
               >
-                <RadioButton
+                <RadioButton.Android
                   value="balance"
                   status={
                     checkedAdvance === "balance" ? "checked" : "unchecked"
@@ -1552,7 +1552,7 @@ const Invoice = ({ navigation, route }) => {
                     ).length > 0
                   }
                   type={"tab"}
-                  defaultStyle={{ borderRadius: 30 }}
+                  defaultStyle={{ borderRadius: 20 }}
                   buttonBorder={styles.buttonStyle}
                   disabled={
                     invoices.filter(
@@ -1580,7 +1580,7 @@ const Invoice = ({ navigation, route }) => {
                     ).length > 0
                   }
                   type={invoiceData.typeOfOperation === -1 ? "primaty" : "tab"}
-                  defaultStyle={{ borderRadius: 30 }}
+                  defaultStyle={{ borderRadius: 20 }}
                   buttonBorder={styles.buttonStyle}
                   disabled={
                     invoices.filter(

@@ -15,7 +15,7 @@ const PaymentType = ({
         <ProButton
           label="Nağd"
           type="tab"
-          defaultStyle={{ borderRadius: 30 }}
+          defaultStyle={{ borderRadius: 20 }}
           buttonBorder={styles.buttonStyle}
           selected={typeOfPayment === 1 && !disabled}
           onClick={() => {
@@ -26,7 +26,7 @@ const PaymentType = ({
         <ProButton
           label="Bank"
           type="tab"
-          defaultStyle={{ borderRadius: 30 }}
+          defaultStyle={{ borderRadius: 20 }}
           buttonBorder={styles.buttonStyle}
           selected={typeOfPayment === 2 && !disabled}
           disabled={disabled}
@@ -37,7 +37,7 @@ const PaymentType = ({
         <ProButton
           label="Kart"
           type="tab"
-          defaultStyle={{ borderRadius: 30 }}
+          defaultStyle={{ borderRadius: 20 }}
           buttonBorder={styles.buttonStyle}
           selected={typeOfPayment === 3 && !disabled}
           disabled={disabled}
@@ -48,7 +48,7 @@ const PaymentType = ({
         <ProButton
           label="Digər"
           type="tab"
-          defaultStyle={{ borderRadius: 30 }}
+          defaultStyle={{ borderRadius: 20 }}
           buttonBorder={styles.buttonStyle}
           selected={typeOfPayment === 4 && !disabled}
           disabled={disabled}

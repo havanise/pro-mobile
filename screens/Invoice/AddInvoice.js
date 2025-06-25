@@ -1368,7 +1368,7 @@ const AddInvoice = ({
                   }}
                 >
                   <Text>Qaimələr</Text>
-                  <RadioButton value={1} />
+                  <RadioButton.Android value={1} />
                 </View>
                 <View
                   style={{
@@ -1378,7 +1378,7 @@ const AddInvoice = ({
                   }}
                 >
                   <Text>ƏDV qaimələri</Text>
-                  <RadioButton value={2} />
+                  <RadioButton.Android value={2} />
                 </View>
                 <View
                   style={{
@@ -1388,7 +1388,7 @@ const AddInvoice = ({
                   }}
                 >
                   <Text>Qaimələr + ƏDV</Text>
-                  <RadioButton value={3} />
+                  <RadioButton.Android value={3} />
                 </View>
               </View>
             </RadioButton.Group>
@@ -1423,7 +1423,9 @@ const AddInvoice = ({
                       <AntDesign name="filter" size={18} color="#55ab80" />
                     }
                     type="transparent"
-                    onClick={() => setFilterVisible(true)}
+                    onClick={() => {
+                      console.log('okjjkk')
+                      setFilterVisible(true)}}
                     defaultStyle={{ borderRadius: 5 }}
                     buttonBorder={styles.buttonStyle}
                     flex={false}

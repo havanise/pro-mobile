@@ -363,7 +363,7 @@ const Dashboard = ({ navigation }) => {
                     ]}
                   >
                     <ButtonContainer
-                      style={{ borderRadius: 50 }}
+                      style={{ borderRadius: 20 }}
                       onPress={() => {
                         if (!(permission === 2 && permission)) {
                           Toast.show({
