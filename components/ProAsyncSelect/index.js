@@ -98,7 +98,7 @@ const ProAsyncSelect = ({
         const ids = new Set(
           resp.map((d) => {
             return `${d.id}${
-              d.unitOfMeasurementId ? d.unitOfMeasurementId : ""
+              d.unitOfMeasurementId && !d.id?.toString().includes(d.unitOfMeasurementId.toString()) ? d.unitOfMeasurementId : ""
             }`;
           })
         );
@@ -162,7 +162,7 @@ const ProAsyncSelect = ({
   }, [callFunc]);
 
   useEffect(() => {
-    if (isMulti && !notForm && defaultValue) {
+    if (isMulti && !notForm && defaultValue && multiSelected.length === 0) {
       setMultiSelected(defaultValue)
     }
   }, [isMulti, notForm, defaultValue]);
@@ -239,7 +239,6 @@ const ProAsyncSelect = ({
             }}
             onChange={(item) => {
               setMultiSelected(item);
-              console.log(item, "item")
               handleSelectValue({ list: item, id: item[item.length - 1] });
               setIsFocus(false);
               if (async && nextPage !== 1) {
@@ -396,7 +395,6 @@ const ProAsyncSelect = ({
                 }}
                 onChange={(item) => {
                   onChange(item);
-                  console.log(item, "uehebbeb");
                   setMultiSelected(item);
                   handleSelectValue({ list: item, id: item[item.length - 1] });
                   setIsFocus(false);

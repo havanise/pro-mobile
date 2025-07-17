@@ -236,7 +236,7 @@ const PaymentRow = ({
         />
       </View>
       {checked ? (
-        <>
+        <View style={{ display:'flex', gap:10 }}>  
           <ProAsyncSelect
             label="Əməkdaş"
             data={workers}
@@ -525,7 +525,7 @@ const PaymentRow = ({
               />
             ))
           )}
-        </>
+        </View>
       ) : null}
     </View>
   );

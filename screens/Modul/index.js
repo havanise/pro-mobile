@@ -30,6 +30,7 @@ import {
   Modal,
   ActivityIndicator,
   Pressable,
+  Platform
 } from "react-native";
 import {
   getSettings,
@@ -1762,24 +1763,38 @@ const FirstRoute = (props) => {
     const base64 = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
     const filename = FileSystem.documentDirectory + `invoice${uuid()}}.xlsx`;
 
-    const permissions =
-      await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+    if (Platform.OS === 'android') {
+      const permissions =
+        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
 
-    if (permissions.granted) {
-      await FileSystem.StorageAccessFramework.createFileAsync(
-        permissions.directoryUri,
-        filename,
-        "application/xls"
-      )
-        .then(async (uri) => {
-          await FileSystem.writeAsStringAsync(uri, base64, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-        })
-        .catch((e) => console.log(e));
-    } else {
-      Sharing.shareAsync(filename);
+        if (permissions.granted) {
+          await FileSystem.StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            filename,
+            "application/xls"
+          )
+            .then(async (uri) => {
+              await FileSystem.writeAsStringAsync(uri, base64, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+            })
+            .catch((e) => console.log(e));
+        } else {
+          Sharing.shareAsync(filename);
+        }
+    } else if (Platform.OS === 'ios') {
+      const fileUri = FileSystem.documentDirectory + `invoice${uuid()}}.xlsx`;
+
+      await FileSystem.writeAsStringAsync(fileUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      await Sharing.shareAsync(fileUri, {
+        UTI: "com.microsoft.excel.xlsx",
+        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
     }
+    
   };
 
   const handleLongPress = (row, index) => {
@@ -2092,6 +2107,7 @@ const FirstRoute = (props) => {
               }
 
               setShowModal(false);
+              if(Platform.OS === "ios" ) {setModalVisible(true);}
             }}
             allBusinessUnits={allBusinessUnits}
             profile={profile}
@@ -2105,6 +2121,7 @@ const FirstRoute = (props) => {
               }
 
               setShowModal(false);
+              if(Platform.OS === "ios" ) {setModalVisible(true);}
             }}
             row={selectedRow}
             allBusinessUnits={allBusinessUnits}
@@ -2249,9 +2266,12 @@ const FirstRoute = (props) => {
                             <TouchableOpacity
                               style={styles.iconButton}
                               onPress={() => {
+                                if (Platform.OS === "ios" ) {setModalVisible(false);}
+                                
                                 handleView();
                               }}
                               onLongPress={() => {
+                                if (Platform.OS === "ios" ) {setModalVisible(false);}
                                 handleView();
                               }}
                             >
@@ -2280,6 +2300,7 @@ const FirstRoute = (props) => {
                                 <TouchableOpacity
                                   style={styles.iconButton}
                                   onPress={() => {
+                                    setModalVisible(false);
                                     if (
                                       selectedRow.invoiceTypeNumber === 3 ||
                                       selectedRow.invoiceTypeNumber === 4
@@ -2313,6 +2334,7 @@ const FirstRoute = (props) => {
                                     }
                                   }}
                                   onLongPress={() => {
+                                    setModalVisible(false);
                                     if (
                                       selectedRow.invoiceTypeNumber === 3 ||
                                       selectedRow.invoiceTypeNumber === 4
@@ -3098,7 +3120,8 @@ const SecondRoute = (props) => {
     const filename =
       FileSystem.documentDirectory + `transaction${uuid()}}.xlsx`;
 
-    const permissions =
+    if (Platform.OS === 'android') {
+      const permissions =
       await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
 
     if (permissions.granted) {
@@ -3115,6 +3138,18 @@ const SecondRoute = (props) => {
         .catch((e) => console.log(e));
     } else {
       Sharing.shareAsync(filename);
+    }}
+    else if (Platform.OS === 'ios') {
+      const fileUri = FileSystem.documentDirectory + `invoice${uuid()}}.xlsx`;
+
+      await FileSystem.writeAsStringAsync(fileUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      await Sharing.shareAsync(fileUri, {
+        UTI: "com.microsoft.excel.xlsx",
+        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
     }
   };
 
@@ -3504,6 +3539,7 @@ const SecondRoute = (props) => {
             }
 
             setShowModal(false);
+            if(Platform.OS === "ios" ) {setModalVisible(true);}
           }}
           allBusinessUnits={allBusinessUnits}
           profile={profile}
@@ -3638,9 +3674,11 @@ const SecondRoute = (props) => {
                           <TouchableOpacity
                             style={styles.iconButton}
                             onPress={() => {
+                              if(Platform.OS === "ios" ) {setModalVisible(false);}
                               handleDetailsModal(selectedRow);
                             }}
                             onLongPress={() => {
+                              if(Platform.OS === "ios" ) {setModalVisible(false);}
                               handleDetailsModal(selectedRow);
                             }}
                           >
@@ -3668,9 +3706,11 @@ const SecondRoute = (props) => {
                               <TouchableOpacity
                                 style={styles.iconButton}
                                 onPress={() => {
+                                  setModalVisible(false);
                                   setDeleteModal(true);
                                 }}
                                 onLongPress={() => {
+                                  setModalVisible(false);
                                   setDeleteModal(true);
                                 }}
                               >
@@ -3729,6 +3769,7 @@ const SecondRoute = (props) => {
                                       ids: [selectedRow.cashboxTransactionId],
                                     },
                                   }).then((data) => {
+                                    setModalVisible(false)
                                     switch (selectedRow.transactionType) {
                                       case 4:
                                         navigation.push("FinanceTransfer", {
@@ -3769,6 +3810,7 @@ const SecondRoute = (props) => {
                                       ids: [selectedRow.cashboxTransactionId],
                                     },
                                   }).then((data) => {
+                                    setModalVisible(false);
                                     switch (selectedRow.transactionType) {
                                       case 4:
                                         navigation.push("FinanceTransfer", {

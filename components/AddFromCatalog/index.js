@@ -54,6 +54,7 @@ const AddFromCatalog = ({
   productsToHandle,
   applylastPrice = false,
   checkQuantityForContact = false,
+  autoFillPrice
 }) => {
   const { BUSINESS_TKN_UNIT } = useContext(TenantContext);
 
@@ -147,7 +148,6 @@ const AddFromCatalog = ({
 
   const handleChildCatalogSelect = (id) => {
     setSelectedChildCatalogId(id);
-    console.log(id);
     runProducts({
       apiEnd: id,
       filter: {
@@ -202,8 +202,8 @@ const AddFromCatalog = ({
   const transformUniqueIdData = (productArr = []) =>
     productArr.map((product) => ({
       ...product,
-      id: `${product.id}${product?.unitOfMeasurementId}`,
-      productId: product?.id,
+      id: `${product.id}${!product.id?.toString().includes(product?.unitOfMeasurementId.toString()) ? product?.unitOfMeasurementId : ""}`,
+      productId: product.id?.toString().includes(product?.unitOfMeasurementId.toString()) ? product.id?.toString().replaceAll(product?.unitOfMeasurementId.toString(), "") :product?.id,
     }));
 
   const clearModal = () => {
@@ -287,12 +287,12 @@ const AddFromCatalog = ({
                 product.unitOfMeasurementId
               );
 
-              const invoicePrice = productPriceData?.invoicePrice
+              const invoicePrice = autoFillPrice && productPriceData?.invoicePrice
                 ? Number(productPriceData?.invoicePrice)
                 : null;
 
               const productInfo = productData?.find(
-                (productD) => productD.id === product?.productId
+                (productD) => productD.id == product?.productId
               );
               const invQuantity = product?.invoiceQuantity
                 ? product.invoiceQuantity
@@ -433,7 +433,7 @@ const AddFromCatalog = ({
         }).then((productData) => {
           const productsWithPrices = newSelectedProducts.map((product) => {
             const productInfo = productData?.find(
-              (productD) => productD.id === product?.productId
+              (productD) => productD.id == product?.productId
             );
 
             const price = math.mul(
@@ -442,7 +442,7 @@ const AddFromCatalog = ({
             );
             const productPriceData = { invoicePrice: price };
 
-            const invoicePrice = productPriceData?.invoicePrice
+            const invoicePrice = autoFillPrice && productPriceData?.invoicePrice
               ? Number(productPriceData?.invoicePrice)
               : null;
 
@@ -736,10 +736,12 @@ const AddFromCatalog = ({
                 100
               );
               const productInfo = productData?.find(
-                (productD) => productD.id === product?.productId
+                (productD) => productD.id == product?.productId
               );
-              const invoicePriceValue =
-                defaultNumberFormat(invoice[product?.productId]) ?? null;
+              console.log(productData)
+              console.log(product)
+              console.log(productInfo)
+              const invoicePriceValue = autoFillPrice ? defaultNumberFormat(invoice[product?.productId]) : null ?? null;
               const invQuantity = product.invoiceQuantity
                 ? product.invoiceQuantity
                 : productInfo?.isWithoutSerialNumber
@@ -916,7 +918,7 @@ const AddFromCatalog = ({
               100
             );
             const productInfo = productData?.find(
-              (productD) => productD.id === product?.productId
+              (productD) => productD.id == product?.productId
             );
             return {
               ...product,
@@ -1175,24 +1177,6 @@ const AddFromCatalog = ({
       setNewSelectedProducts([newProduct, ...newSelectedProducts]);
     }
   };
-  const handleSelectedProductsChange = (productIds) => {
-    const newProducts = transformUniqueIdData(newSelectedProducts).filter(
-      (product) => productIds.includes(product.id)
-    );
-    setNewSelectedProducts(newProducts);
-  };
-
-  const handleAllCatalogs = (event) => {
-    if (event.target.checked) {
-      setAllCatalogsSelected(true);
-      setSelectedCatalogId(undefined);
-      setSelectedChildCatalogId(undefined);
-      setNewSelectedProducts([]);
-      getAllProducts();
-    } else {
-      setAllCatalogsSelected(false);
-    }
-  };
 
   useEffect(() => {
     if (filteredProducts.length > 0) {
@@ -1202,7 +1186,7 @@ const AddFromCatalog = ({
     if (filteredProducts.length === 0) {
       setCatalogProducts([]);
     }
-  }, [newSelectedProducts, filteredProducts]);
+  }, [filteredProducts]);
 
   const { isLoading: isLoadAgents, run: runProducts } = useApi({
     deferFn:
@@ -1242,16 +1226,6 @@ const AddFromCatalog = ({
       console.log(error, "rejected");
     },
   });
-
-  console.log(
-    selectedCatalogId
-      ? childCatalogs[selectedCatalogId]?.map((item) => ({
-          ...item,
-          label: item.name,
-          value: item.id,
-        }))
-      : []
-  );
 
   return (
     <Modal
@@ -1344,7 +1318,6 @@ const AddFromCatalog = ({
               notForm
               filter={{}}
               handleSelectValue={(id) => {
-                console.log(id);
                 handleChildCatalogSelect(id);
               }}
             />
@@ -1357,8 +1330,7 @@ const AddFromCatalog = ({
                       .filter((product) => {
                         return ![
                           ...transformUniqueIdData(selectedProducts).map(
-                            (selectedProduct) =>
-                              `${selectedProduct.productId}${selectedProduct?.unitOfMeasurementID}`
+                            (selectedProduct) => selectedProduct.id
                           ),
                         ].includes(product?.id);
                       })

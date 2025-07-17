@@ -41,7 +41,6 @@ const AddSerialNumbers = ({
   type,
   handleQuantityChange,
   fetchSelectedSerialNumbers,
-  triggerExit,
   setWarningModalVisible = () => {},
   productWithSerialNumbers,
   setProductWithSerialNumbers = () => {},
@@ -152,11 +151,6 @@ const AddSerialNumbers = ({
     }
   }, [serialNumbers]);
 
-  useEffect(() => {
-    if (triggerExit?.onOk) {
-      completeOperation();
-    }
-  }, [triggerExit]);
   return (
     <Modal
       animationType="slide"

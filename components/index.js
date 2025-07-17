@@ -18,6 +18,7 @@ import PaymentRow from "./PaymentRow";
 import BronModal from "./BronModal";
 import ProWarningModal from "./ProWarningModal";
 import Email from "./Email";
+import CustomModal from "./CustomModal";
 
 export {
   ProInput,
@@ -39,4 +40,5 @@ export {
   ProWarningModal,
   Email,
   ProDateRange,
+  CustomModal
 };

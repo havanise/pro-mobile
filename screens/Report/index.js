@@ -187,9 +187,11 @@ const Report = ({ navigation }) => {
             }
             setIndex(newIndex);
           }}
-          initialLayout={{ width: layout.width }}
+          initialLayout={{ width: layout?.width || Dimensions.get('window').width }}
           renderTabBar={renderTabBar}
           swipeEnabled={false}
+          lazy
+          lazyPreloadDistance={1}
         />
       </View>
     </SafeAreaView>

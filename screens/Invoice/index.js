@@ -55,6 +55,7 @@ import { map, uniqBy } from "lodash";
 import Dept from "./Dept";
 import { InvoiceAmountOfTransaction } from "./InvoiceAmountOfTransaction";
 import AddInvoice from "./AddInvoice";
+import { getInvoiceList, handleReceivablesPayables } from "./actions";
 
 const math = require("exact-math");
 const BigNumber = require("bignumber.js");
@@ -872,40 +873,86 @@ const Invoice = ({ navigation, route }) => {
   }, [currencies, operationList]);
 
   const updateReceivablesPayables = (invoices) => {
-    let receivablesTemp = {};
-    let payablesTemp = {};
-    invoices.forEach((invoice) => {
-      const { invoiceType, currencyCode, remainingInvoiceDebt } = invoice;
-      if (invoiceType === 2 || invoiceType === 4 || invoiceType === 13) {
-        receivablesTemp = {
-          ...receivablesTemp,
-          [currencyCode]:
-            (receivablesTemp[currencyCode] || 0) + Number(remainingInvoiceDebt),
-        };
-      } else if (
-        invoiceType === 1 ||
-        invoiceType === 3 ||
-        invoiceType === 10 ||
-        invoiceType === 12
-      ) {
-        payablesTemp = {
-          ...payablesTemp,
-          [currencyCode]:
-            (payablesTemp[currencyCode] || 0) + Number(remainingInvoiceDebt),
-        };
-      }
-    });
-    setReceivables(receivablesTemp);
-    setPayables(payablesTemp);
+    // let receivablesTemp = {};
+    // let payablesTemp = {};
+    // invoices.forEach((invoice) => {
+    //   const { invoiceType, currencyCode, remainingInvoiceDebt } = invoice;
+    //   if (invoiceType === 2 || invoiceType === 4 || invoiceType === 13) {
+    //     receivablesTemp = {
+    //       ...receivablesTemp,
+    //       [currencyCode]:
+    //         (receivablesTemp[currencyCode] || 0) + Number(remainingInvoiceDebt),
+    //     };
+    //   } else if (
+    //     invoiceType === 1 ||
+    //     invoiceType === 3 ||
+    //     invoiceType === 10 ||
+    //     invoiceType === 12
+    //   ) {
+    //     payablesTemp = {
+    //       ...payablesTemp,
+    //       [currencyCode]:
+    //         (payablesTemp[currencyCode] || 0) + Number(remainingInvoiceDebt),
+    //     };
+    //   }
+    // });
+    const { receivables, payables } = handleReceivablesPayables(
+      invoices,
+      id,
+      operationList
+  );
+
+  setReceivables(receivables);
+  setPayables(payables);
+
+    // setReceivables(receivablesTemp);
+    // setPayables(payablesTemp);
   };
 
   const { isLoad, run: runAdvancePaymentByContactId } = useApi({
     deferFn: fetchAdvancePaymentByContactId,
     onResolve: (data) => {
       const editedData = {
-        myAmount: data?.myAmount,
-        contactsAmount: data?.contactsAmount,
-      };
+        myAmount:
+                id &&
+                operationList[0]?.isAdvance &&
+                operationList[0]?.cashInOrCashOut === 1 &&
+                getValues('counterparty') ===
+                    operationList[0]?.contactId &&
+                !data?.myAmount
+                    ?.map(({ currencyId }) => currencyId)
+                    .includes(Number(operationList[0]?.currencyId))
+                    ? [
+                          {
+                              amount: operationList[0]?.amount,
+                              code: operationList[0]?.currencyCode,
+                              currencyId: operationList[0]?.currencyId,
+                              fromFront: true,
+                          },
+                          ...data?.myAmount,
+                      ]
+                    : [...data?.myAmount],
+            contactsAmount:
+                id &&
+                operationList[0]?.isAdvance &&
+                operationList[0]?.cashInOrCashOut === -1 &&
+                getValues('counterparty') ===
+                    operationList[0]?.contactId &&
+                !data?.contactsAmount
+                    ?.map(({ currencyId }) => currencyId)
+                    .includes(Number(operationList[0]?.currencyId))
+                    ? [
+                          {
+                              amount: operationList[0]?.amount,
+                              code: operationList[0]?.currencyCode,
+                              currencyId: operationList[0]?.currencyId,
+                              fromFront: true,
+                          },
+                          ...data?.contactsAmount,
+                      ]
+                    : [...data?.contactsAmount],
+        };
+
       setAdvancePayment(editedData);
     },
     onReject: (error) => {
@@ -1245,81 +1292,6 @@ const Invoice = ({ navigation, route }) => {
     setUseAdvance(checked);
   };
 
-  const getInvoiceList = (
-    invoices,
-    type,
-    edit,
-    operationsList,
-    isVat,
-    counterparty
-  ) => {
-    const invoicesWithVat =
-      invoices?.length > 0 || edit
-        ? [
-            edit &&
-            operationsList?.length > 0 &&
-            operationsList[0].contactId === counterparty &&
-            (!invoices
-              .filter(
-                ({ id, isTax }) =>
-                  id === Number(operationsList[0].invoiceId) && isVat === isTax
-              )
-              .map(({ id }) => id)
-              .includes(Number(operationsList?.[0]?.invoiceId)) ||
-              (operationsList[0].transactionType === 10 &&
-                invoices.filter(
-                  ({ id, isTax }) =>
-                    id === Number(operationsList[0].invoiceId) && isTax
-                ).length === 0))
-              ? {
-                  id: operationsList[0].invoiceId,
-                  value: operationsList[0].invoiceId,
-                  label: operationsList[0].invoiceNumber,
-                  invoiceType: operationsList[0].invoiceType,
-                  invoiceNumber: operationsList[0].invoiceNumber,
-                  remainingInvoiceDebt: 0,
-                  remainingInvoiceDebtWithCredit: 0,
-                  debtAmount: 0,
-                  currencyCode: operationsList[0].invoiceCurrencyCode,
-                  currencyId: operationsList[0].invoiceCurrencyId,
-                  fromEdit: true,
-                  isTax: operationsList[0].transactionType === 10,
-                }
-              : {},
-            ...invoices,
-          ]
-            .filter((invoice) =>
-              type === 1
-                ? invoice.invoiceType === 2 ||
-                  invoice.invoiceType === 4 ||
-                  invoice.invoiceType === 13
-                : invoice.invoiceType === 1 ||
-                  invoice.invoiceType === 3 ||
-                  invoice.invoiceType === 10 ||
-                  invoice.invoiceType === 12
-            )
-            .map((currentInvoice) => {
-              if (currentInvoice.isTax) {
-                return {
-                  ...currentInvoice,
-                  id: `${currentInvoice.id}-vat`,
-                  value: `${currentInvoice.id}-vat`,
-                  invoiceNumber: `${currentInvoice.invoiceNumber}(VAT)`,
-                  label: `${currentInvoice.label}(VAT)`,
-                  debtAmount: Number(currentInvoice.remainingInvoiceDebt),
-                  isTax: true,
-                };
-              }
-              return {
-                ...currentInvoice,
-                debtAmount: Number(currentInvoice.remainingInvoiceDebt),
-                value: currentInvoice.id,
-              };
-            }, [])
-        : [];
-    return invoicesWithVat;
-  };
-
   const Voices = getInvoiceList(
     invoices,
     invoiceData.typeOfOperation,
@@ -1451,6 +1423,19 @@ const Invoice = ({ navigation, route }) => {
                   receivables={receivables}
                   payables={payables}
                   counterparty={getValues("counterparty")}
+                  editId={id}
+                  operationsList={operationList && operationList.length > 0 && operationList[0]?.isAdvance
+                    ? operationList?.map((item) => ({
+                              ...item,
+                              operationDirectionId:
+                                  item.cashInOrCashOut ===
+                                  1
+                                      ? -1
+                                      : 1,
+                          })
+                      )
+                    : operationList
+                }
                 />
               )}
             </View>
@@ -1502,13 +1487,14 @@ const Invoice = ({ navigation, route }) => {
                   onChange={handleAdvanceChange}
                   disabled={
                     !getValues("invoice") || !getValues("counterparty")
-                    // advancePayment[
-                    //   paymentDirection[invoiceData.typeOfOperation]
-                    // ]?.length === 0 ||
-                    // isDisabled
-                    // || selectedInvoices?.length > 1
                   }
                   loading={isLoad}
+                  editId={id}
+                  operationsList={operationList}
+                  isInvoice
+                  selectedCounterparty={getValues(
+                    'counterparty'
+                  )}
                 />
               </View>
             )}

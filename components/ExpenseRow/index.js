@@ -75,115 +75,109 @@ const ExpenseRow = (props) => {
   ]);
 
   return (
-    <>
-      <View>
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <ProAsyncSelect
-            width="45%"
-            label="Əməliyyatın kateqoriyası"
-            data={
-              fromTransfer
-                ? expenseCatalogs?.root
-                    ?.filter(({ type }) => type === 3)
-                    ?.map((item) => ({
-                      ...item,
-                      label: item.name,
-                      value: item.id,
-                    }))
-                : expenseCatalogs?.root
-                    ?.filter(({ type }) => type !== 6)
-                    ?.map((item) => ({
-                      ...item,
-                      label: item.name,
-                      value: item.id,
-                    }))
-            }
-            setData={() => {}}
-            fetchData={() => {}}
-            async={false}
-            filter={{}}
-            required
-            disabled={disabled}
-            control={control}
-            allowClear={false}
-            name={`expenses[${index}].catalog`}
-            handleSelectValue={(id) => {
-              setDisabled(false);
-              setValue(
-                "expenses",
-                getValues("expenses")?.map((expense, expenseIndex) =>
-                  expenseIndex === index
-                    ? {
-                        ...expense,
-                        subCatalog: undefined,
-                      }
-                    : expense
-                )
-              );
-            }}
-          />
-          <ProAsyncSelect
-            width="50%"
-            label="Əməliyyatın alt kateqoriyası"
-            data={
-              expenseCatalogs?.children
-                ? expenseCatalogs.children[
-                    watch(`expenses[${index}].catalog`)
-                  ]?.map((item) => ({
+    <View style={{ display: 'flex', gap: 10}}>
+        <ProAsyncSelect
+          label="Əməliyyatın kateqoriyası"
+          data={
+            fromTransfer
+              ? expenseCatalogs?.root
+                  ?.filter(({ type }) => type === 3)
+                  ?.map((item) => ({
                     ...item,
                     label: item.name,
                     value: item.id,
                   }))
-                : []
-            }
-            setData={() => {}}
-            fetchData={() => {}}
-            async={false}
-            filter={{}}
-            required
-            disabled={isDisabled || disabled}
-            control={control}
-            allowClear={false}
-            name={`expenses[${index}].subCatalog`}
-          />
-        </View>
-        <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-end" }}>
-          <ProFormInput
-            label="Məbləğ"
-            required
-            name={`expenses[${index}].amount`}
-            control={control}
-            width="80%"
-            keyboardType="numeric"
-            disabled={disabled || fromInvoice}
-            handleChange={(val) => {
-              handleExpenseChange(val, index);
-            }}
-            suffix={currencyCode}
-          />
+              : expenseCatalogs?.root
+                  ?.filter(({ type }) => type !== 6)
+                  ?.map((item) => ({
+                    ...item,
+                    label: item.name,
+                    value: item.id,
+                  }))
+          }
+          setData={() => {}}
+          fetchData={() => {}}
+          async={false}
+          filter={{}}
+          required
+          disabled={disabled}
+          control={control}
+          allowClear={false}
+          name={`expenses[${index}].catalog`}
+          handleSelectValue={(id) => {
+            setDisabled(false);
+            setValue(
+              "expenses",
+              getValues("expenses")?.map((expense, expenseIndex) =>
+                expenseIndex === index
+                  ? {
+                      ...expense,
+                      subCatalog: undefined,
+                    }
+                  : expense
+              )
+            );
+          }}
+        />
+        <ProAsyncSelect
+          label="Əməliyyatın alt kateqoriyası"
+          data={
+            expenseCatalogs?.children
+              ? expenseCatalogs.children[
+                  watch(`expenses[${index}].catalog`)
+                ]?.map((item) => ({
+                  ...item,
+                  label: item.name,
+                  value: item.id,
+                }))
+              : []
+          }
+          setData={() => {}}
+          fetchData={() => {}}
+          async={false}
+          filter={{}}
+          required
+          disabled={isDisabled || disabled}
+          control={control}
+          allowClear={false}
+          name={`expenses[${index}].subCatalog`}
+        />
+      <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-end" }}>
+        <ProFormInput
+          label="Məbləğ"
+          required
+          name={`expenses[${index}].amount`}
+          control={control}
+          width="80%"
+          keyboardType="numeric"
+          disabled={disabled || fromInvoice}
+          handleChange={(val) => {
+            handleExpenseChange(val, index);
+          }}
+          suffix={currencyCode}
+        />
 
-          {!fromInvoice && !plusDisabled &&
-            (index === 0 ? (
-              <ProButton
-                label={<AntDesign name="pluscircle" size={30} color="black" />}
-                type="transparent"
-                flex={false}
-                onClick={() => handleAddExpenseClick("add", index)}
-              />
-            ) : (
-              <ProButton
-                label={
-                  <AntDesign name="minuscircle" size={30} color="#FF716A" />
-                }
-                type="transparent"
-                flex={false}
-                onClick={() => handleAddExpenseClick("remove", index)}
-                disabled={disabled}
-              />
-            ))}
-        </View>
+        {!fromInvoice && !plusDisabled &&
+          (index === 0 ? (
+            <ProButton
+              label={<AntDesign name="pluscircle" size={30} color="black" />}
+              type="transparent"
+              flex={false}
+              onClick={() => handleAddExpenseClick("add", index)}
+            />
+          ) : (
+            <ProButton
+              label={
+                <AntDesign name="minuscircle" size={30} color="#FF716A" />
+              }
+              type="transparent"
+              flex={false}
+              onClick={() => handleAddExpenseClick("remove", index)}
+              disabled={disabled}
+            />
+          ))}
       </View>
-    </>
+    </View>
   );
 };
 

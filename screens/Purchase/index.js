@@ -433,7 +433,7 @@ const FirstRoute = (props) => {
               name="currency"
             />
             <View style={{ position: "relative" }}>
-              <View style={{ position: "absolute", right: 10, top: 10 }}>
+              <View style={{ position: "absolute", zIndex: 1, right: 10, top: 10 }}>
                 <ProButton
                   label={<AntDesign name="pluscircle" size={14} />}
                   type="transparent"
@@ -667,6 +667,7 @@ const SecondRoute = (props) => {
     id,
     invoiceInfo,
     purchase_discount,
+    userSettings,
   } = props;
 
   const [data, setData] = useState(tableData);
@@ -683,12 +684,26 @@ const SecondRoute = (props) => {
   const [productData, setProductData] = useState();
   const [catalogModalIsVisible, setCatalogModalIsVisible] = useState(false);
   const [addProductModal, setAddProductModal] = useState(false);
+  const [autoFillPrice, setAutoFillPrice] = useState(true);
 
   const invoiceTypesIds = [1, 10, 11, 7, 14];
-  const [triggerExit, setTriggerExit] = useState({
-    onOk: false,
-    path: "",
-  });
+
+  useEffect(() => {
+    if (userSettings) {
+      const settings =  "PURCHASE-OPERATIONS";
+      if (
+        userSettings[settings]?.length > 0 &&
+        userSettings[settings] !== null
+      ) {
+        const parseData = JSON?.parse(userSettings[settings]);
+        const autofillPrice = parseData.find(
+          (column) => column.dataIndex === "autofillPrices"
+        )?.visible;
+
+      setAutoFillPrice(autofillPrice ?? true);
+      }
+    }
+  }, [userSettings]);
 
   const setProductPrice = (productId, newPrice) => {
     const newSelectedProducts = selectedProducts?.map((selectedProduct) => {
@@ -735,6 +750,50 @@ const SecondRoute = (props) => {
           )
         );
 
+        const priceForCalc =(selectedProduct?.discountPercentage == 0 ||
+          !selectedProduct?.discountPercentage) && selectedProduct?.invoiceQuantity
+            ? newPrice
+            : getPriceValue(discountedPrice) ??
+            newPrice ??
+            0;
+      
+
+        const newPercentage =
+          !selectedProduct?.isVatFree && vatSettingState?.percentage && useVat
+            ? math.div(
+                math.mul(
+                  parseFloat(vatSettingState?.percentage ?? 0) ?? 0,
+                  parseFloat(
+                    priceForCalc
+                ) || 0),
+                100
+              )
+            : 0;
+
+        const taxAmountPercentage = math.mul(
+          math.div(
+            parseFloat(newPercentage || 0),
+            parseFloat(
+              priceForCalc || 1
+            ) || 1
+          ),
+          100
+          );
+        const totalTaxAmount = math.mul(
+          parseFloat(newPercentage || 0),
+          parseFloat(selectedProduct?.invoiceQuantity || 0)
+        );
+        const taxAmountWithPrice = math.add(
+          parseFloat(
+            priceForCalc || 0
+          ),
+          parseFloat(newPercentage || 0)
+        );
+        const totalTaxAmountWithPrice = math.mul(
+          parseFloat(taxAmountWithPrice || 0),
+          parseFloat(selectedProduct?.invoiceQuantity || 0)
+        );
+
         return {
           ...selectedProduct,
           invoicePrice: newPrice,
@@ -762,6 +821,18 @@ const SecondRoute = (props) => {
             getPriceValue(totalEndPrice)?.toString()?.split(".")[1]?.length > 4
               ? getPriceValue(totalEndPrice)?.toFixed(4)
               : getPriceValue(totalEndPrice),
+          taxAmount:
+            parseFloat(selectedProduct?.invoiceQuantity || 0) !== 0
+              ? newPercentage
+              : 0,
+          taxAmountPercentage: parseFloat(taxAmountPercentage)?.toFixed(2),
+          originalTaxAmount:
+            parseFloat(selectedProduct?.invoiceQuantity || 0) !== 0
+              ? newPercentage
+              : 0,
+          totalTaxAmount: parseFloat(totalTaxAmount),
+          taxAmountWithPrice: parseFloat(taxAmountWithPrice),
+          totalTaxAmountWithPrice: parseFloat(totalTaxAmountWithPrice),
         };
       }
       return selectedProduct;
@@ -788,10 +859,42 @@ const SecondRoute = (props) => {
       0
     );
 
+    const totalTaxRoadPrice = selectedProducts?.reduce(
+      (acc, product) => math.add(acc, Number(product?.totalRoadTaxAmount ?? 0)),
+      0
+    );
     const discountPercentage = math.mul(
       math.div(parseFloat(totalDiscountAmount || 0), newtotalPrice || 1),
       100
     );
+    const filteredProducts = newSelectedProducts?.filter(
+      ({ isVatFree }) => isVatFree === false
+    );
+    const filteredTotalPrice = filteredProducts?.reduce(
+      (totalPrice, { totalPricePerProduct }) =>
+        math.add(totalPrice, parseFloat(totalPricePerProduct || 0) || 0),
+      0
+    );
+    const newVatAmount = filteredProducts?.reduce(
+      (totalVat, { totalTaxAmount }) =>
+        math.add(totalVat, parseFloat(totalTaxAmount || 0) || 0),
+      0
+    );
+    const newVatPercentage = roundTo(
+      math.div(
+        math.mul(Number(newVatAmount || 0) || 0, 100),
+        math.sub(
+          Number(filteredTotalPrice || 1) || 1,
+          Number(totalTaxRoadPrice || 0) || 0
+        ) || 1
+      ),
+      4
+    );
+
+    setVat({
+      percentage: newVatPercentage,
+      amount: newVatAmount,
+    });
 
     setDiscount({
       percentage: discountPercentage
@@ -2216,16 +2319,16 @@ const SecondRoute = (props) => {
                               item?.coefficientRelativeToMain || 1
                             ) == 0,
                           id: product?.id,
-                          invoicePrice: math.mul(
+                          invoicePrice: autoFillPrice ? math.mul(
                             parseFloat(product.lastPrice ?? 0),
                             parseFloat(item?.coefficientRelativeToMain || 1) ||
                               1
-                          ),
-                          mainInvoicePrice: math.mul(
+                          ) : null,
+                          mainInvoicePrice: autoFillPrice ? math.mul(
                             parseFloat(product.lastPrice ?? 0),
                             parseFloat(item?.coefficientRelativeToMain || 1) ||
                               1
-                          ),
+                          ) : null,
                           catalog: {
                             id: product?.catalogId,
                             isServiceType: product?.isServiceType,
@@ -2246,14 +2349,14 @@ const SecondRoute = (props) => {
                     name: product?.catalogName,
                     rootName: product?.parentCatalogName,
                   },
-                  invoicePrice: math.mul(
+                  invoicePrice: autoFillPrice ? math.mul(
                     parseFloat(product.lastPrice ?? 0),
                     parseFloat(product?.coefficientRelativeToMain || 1) || 1
-                  ),
-                  mainInvoicePrice: math.mul(
+                  ) : null,
+                  mainInvoicePrice: autoFillPrice ? math.mul(
                     parseFloat(product.lastPrice ?? 0),
                     parseFloat(product?.coefficientRelativeToMain || 1) || 1
-                  ),
+                  ) : null,
                   product_code: product?.productCode,
                   unitOfMeasurementName: product?.unitOfMeasurementName,
                   unitOfMeasurementId: product?.unitOfMeasurementId,
@@ -2310,7 +2413,7 @@ const SecondRoute = (props) => {
           });
         }
       }, 300),
-    [serialNumber]
+    [serialNumber, autoFillPrice]
   );
 
   const transformUniqueIdData = (productsArr = []) =>
@@ -2647,6 +2750,7 @@ const SecondRoute = (props) => {
         isVisible={catalogModalIsVisible}
         setModalVisible={setCatalogModalIsVisible}
         setSelectedProducts={setSelectedProducts}
+        autoFillPrice={autoFillPrice}
       />
       <BronModal
         isVisible={bronModal}
@@ -2663,7 +2767,6 @@ const SecondRoute = (props) => {
         setProductWithSerialNumbers={setProductWithSerialNumbers}
         productWithSerialNumbers={productWithSerialNumbers}
         setWarningModalVisible={setWarningModalVisible}
-        triggerExit={triggerExit}
       />
 
       <View style={{ display: "flex", flexDirection: "column" }}>
@@ -4464,10 +4567,10 @@ const Purchase = ({ navigation, route }) => {
     { key: "third", title: "Ödəniş" },
   ]);
 
-  const { profile, BUSINESS_TKN_UNIT, permissionsByKeyValue } =
+  const { profile, BUSINESS_TKN_UNIT, userSettings, permissionsByKeyValue } =
     useContext(TenantContext);
 
-  const { purchase_discount } = permissionsByKeyValue;
+  const { purchase_discount, purchase_invoice } = permissionsByKeyValue;
 
   const updateEditInvoice = (selectedContract, isDraft) => {
     const {
@@ -5853,6 +5956,7 @@ const Purchase = ({ navigation, route }) => {
             id={id}
             invoiceInfo={invoiceInfo}
             purchase_discount={purchase_discount}
+            userSettings={userSettings}
           />
         );
       case "third":

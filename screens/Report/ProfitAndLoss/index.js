@@ -9,6 +9,7 @@ import {
   Modal,
   ActivityIndicator,
   ScrollView,
+  Platform
 } from "react-native";
 import { Table, Row } from "react-native-reanimated-table";
 import { createSettings, fetchReportList } from "../../../api";
@@ -193,23 +194,37 @@ const ProfitAndLoss = (props) => {
     const base64 = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
     const filename = FileSystem.documentDirectory + `report${uuid()}}.xlsx`;
 
-    const permissions =
-      await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
 
-    if (permissions.granted) {
-      await FileSystem.StorageAccessFramework.createFileAsync(
-        permissions.directoryUri,
-        filename,
-        "application/xls"
-      )
-        .then(async (uri) => {
-          await FileSystem.writeAsStringAsync(uri, base64, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-        })
-        .catch((e) => console.log(e));
-    } else {
-      Sharing.shareAsync(filename);
+    if (Platform.OS === 'android') {
+      const permissions =
+        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+
+      if (permissions.granted) {
+        await FileSystem.StorageAccessFramework.createFileAsync(
+          permissions.directoryUri,
+          filename,
+          "application/xls"
+        )
+          .then(async (uri) => {
+            await FileSystem.writeAsStringAsync(uri, base64, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+          })
+          .catch((e) => console.log(e));
+      } else {
+        Sharing.shareAsync(filename);
+      }
+    } else if (Platform.OS === 'ios') {
+      const fileUri = FileSystem.documentDirectory + `invoice${uuid()}}.xlsx`;
+
+      await FileSystem.writeAsStringAsync(fileUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      await Sharing.shareAsync(fileUri, {
+        UTI: "com.microsoft.excel.xlsx",
+        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
     }
   };
 
@@ -628,6 +643,7 @@ const ProfitAndLoss = (props) => {
       </Modal>
       <View
         style={{
+          flex: 1,
           paddingBottom: 40,
         }}
       >

@@ -382,7 +382,7 @@ const Contacts = ({
               defaultValue={
                 fromOperation ? (fromOperation === "sale" ? [1] : [4]) : []
               }
-              isMulti={true}
+              isMulti
               data={Object.values(contactCategories)}
               setData={() => {}}
               fetchData={() => {}}
@@ -391,6 +391,7 @@ const Contacts = ({
               required
               name="category_ul"
               handleSelectValue={({ list }) => {
+                console.log(list, 'list')
                 handleChange(list);
               }}
             />

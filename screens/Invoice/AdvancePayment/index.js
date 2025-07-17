@@ -13,7 +13,13 @@ export const AdvancePayment = (props) => {
     title = "Avansdan ödə",
     subTitle = "Avans:",
     mainCurrencyCode = "AZN",
+    editId = false,
+    operationsList = [],
+    isPayment,
+    isInvoice,
+    selectedCounterparty,
   } = props;
+
   return loading ? (
     <ActivityIndicator color={"gray"} />
   ) : (
@@ -25,33 +31,162 @@ export const AdvancePayment = (props) => {
             <Text>{subTitle}</Text>
           </View>
           <View style={styles.subtitle}>
-            {!advancePayment?.myAmount?.length ? (
+            {!advancePayment?.myAmount?.length || !advancePayment?.contactsAmount?.length ? (
               <Text>0 {mainCurrencyCode}</Text>
             ) : (
               advancePayment?.myAmount?.map(
                 ({ amount, code, currencyId, fromFront }) =>
-                  amount > 0 ? (
+                editId &&
+                ((isPayment &&
+                    selectedCounterparty ===
+                        operationsList[0]
+                            ?.employeeId) ||
+                    (isInvoice &&
+                        !fromFront &&
+                        selectedCounterparty ===
+                            operationsList[0]
+                                ?.contactId)) &&
+                operationsList?.[0]
+                    ?.operationDirectionId === 2 &&
+                currencyId ===
+                    operationsList[0]?.currencyId ? (
+                    Number(amount) +
+                        Number(
+                            operationsList[0]?.amount
+                        ) >
+                    0 ? (
                     <Text style={{ color: "#55AB80" }}>
-                      {formatNumberToLocale(defaultNumberFormat(amount))}
+                      {formatNumberToLocale(defaultNumberFormat(Number(amount) +
+                        Number(
+                            operationsList[0]
+                                ?.amount
+                        )
+                    ))}
                       {code}
                     </Text>
                   ) : (
                     <Text style={{ color: "#FF716A" }}>
-                      {formatNumberToLocale(defaultNumberFormat(amount))}
+                      {formatNumberToLocale(defaultNumberFormat(Number(amount) +
+                        Number(
+                            operationsList[0]
+                                ?.amount
+                        )
+                    ))}
                       {code}
                     </Text>
-                  )
+                  )): amount > 0 ? (
+                    <Text
+                        style={{ color: '#55AB80' }}
+                    >
+                        {formatNumberToLocale(
+                            defaultNumberFormat(
+                                amount
+                            )
+                        )}
+                        {code}
+                    </Text>
+                ) : (
+                    <Text
+                        style={{ color: '#FF716A' }}
+                    >
+                        {formatNumberToLocale(
+                            defaultNumberFormat(
+                                amount
+                            )
+                        )}
+                        {code}
+                    </Text>
+                )
               )
             )}
 
-            <Text style={{ color: "#FF716A" }}>
+            {/* <Text style={{ color: "#FF716A" }}>
               {advancePayment?.contactsAmount?.map(
                 ({ amount, code, currencyId, fromFront }) =>
                   `${formatNumberToLocale(
                     defaultNumberFormat(amount)
                   )} ${code}, `
               )}
-            </Text>
+            </Text> */}
+
+            {editId &&
+                isPayment &&
+                selectedCounterparty ===
+                    operationsList[0]?.employeeId &&
+                operationsList[0]?.cashInOrCashOut === 1 &&
+                operationsList[0]?.isEmployeePayment &&
+                operationsList?.[0]?.operationDirectionId === 2 &&
+                !advancePayment.myAmount
+                    ?.map(({ currencyId }) => currencyId)
+                    .includes(operationsList[0]?.currencyId) ? (
+                    Number(operationsList[0]?.amount) > 0 ? (
+                        <Text
+                            style={{
+                                color: '#55AB80',
+                            }}
+                        >
+                            {formatNumberToLocale(
+                                defaultNumberFormat(
+                                    operationsList[0]?.amount
+                                )
+                            )}
+                            {operationsList[0]?.currencyCode}
+                        </Text>
+                    ) : (
+                        <Text
+                            style={{
+                                color: '#FF716A',
+                            }}
+                        >
+                            {formatNumberToLocale(
+                                defaultNumberFormat(
+                                    operationsList[0]?.amount
+                                )
+                            )}
+                            {operationsList[0]?.currencyCode}
+                        </Text>
+                    )
+                ) : (
+                    ''
+                )}
+
+                <Text style={{ color: '#FF716A' }}>
+                    {advancePayment?.contactsAmount?.map(
+                        ({
+                            amount,
+                            code,
+                            currencyId,
+                            fromFront,
+                        }) =>
+                            editId &&
+                            ((isPayment &&
+                                selectedCounterparty ===
+                                    operationsList[0]
+                                        ?.employeeId) ||
+                                (isInvoice &&
+                                    !fromFront &&
+                                    selectedCounterparty ===
+                                        operationsList[0]
+                                            ?.contactId)) &&
+                            operationsList?.[0]
+                                ?.operationDirectionId === 2 &&
+                            currencyId ===
+                                operationsList[0]?.currencyId
+                                ? `${formatNumberToLocale(
+                                      defaultNumberFormat(
+                                          Number(amount) +
+                                              Number(
+                                                  operationsList[0]
+                                                      ?.amount
+                                              )
+                                      )
+                                  )} ${code}, `
+                                : `${formatNumberToLocale(
+                                      defaultNumberFormat(amount)
+                                  )} ${code}, `
+                    )}
+                </Text>
+
           </View>
         </View>
       </View>

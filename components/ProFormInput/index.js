@@ -90,7 +90,6 @@ const ProFormInput = ({
                     disabled && { backgroundColor: "#ececec" },
                     {
                       flexDirection: "row",
-                      justifyContent: "space-between",
                       alignItems: "center",
                     },
                     style && style,
@@ -99,7 +98,10 @@ const ProFormInput = ({
                   <TextInput
                     multiline={multiline}
                     editable={!disabled}
-                    // style={}
+                    style={{
+                      width: '90%',
+                      padding: 5,
+                    }}
                     placeholder="Yazın"
                     onBlur={onBlur}
                     onChangeText={(val) => {

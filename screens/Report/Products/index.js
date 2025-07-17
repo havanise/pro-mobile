@@ -987,9 +987,11 @@ const Products = (props) => {
                             <TouchableOpacity
                               style={styles.iconButton}
                               onPress={() => {
+                                setModalVisible(false);
                                 handleView();
                               }}
                               onLongPress={() => {
+                                setModalVisible(false);
                                 handleView();
                               }}
                             >

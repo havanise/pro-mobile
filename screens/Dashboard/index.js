@@ -213,8 +213,8 @@ const Dashboard = ({ navigation }) => {
   };
 
   const onPress = (key) => {
-    const options = businessUnitList?.map((item) => item.name);
-    const cancelButtonIndex = 999;
+    const options = [...businessUnitList?.map((item) => item.name),'İmtina'];
+    const cancelButtonIndex = businessUnitList?.map((item) => item.name).length;
     const containerStyle = {
       maxHeight: 400,
       borderTopLeftRadius: 20,
@@ -261,7 +261,8 @@ const Dashboard = ({ navigation }) => {
           containerStyle,
         },
         (selectedIndex) => {
-          if (selectedIndex !== 999) {
+          if (selectedIndex === cancelButtonIndex) {}
+          else {
             saveBusinessUnit(
               businessUnitList[selectedIndex]?.id === null
                 ? "0"
@@ -403,8 +404,8 @@ const Dashboard = ({ navigation }) => {
   };
 
   const doUserLogOut = () => {
-    const options = ["Çıxış"];
-    const cancelButtonIndex = 999;
+    const options = ["Çıxış", 'İmtina'];
+    const cancelButtonIndex = 1;
     const containerStyle = {
       maxHeight: 400,
       borderTopLeftRadius: 20,
@@ -418,7 +419,8 @@ const Dashboard = ({ navigation }) => {
         containerStyle,
       },
       async (selectedIndex) => {
-        if (selectedIndex === 0) {
+        if(selectedIndex === 1) {}
+        else if (selectedIndex === 0) {
           return await clearToken()
             .then(async () => {
               setIsLogged(false);

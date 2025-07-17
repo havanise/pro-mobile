@@ -607,11 +607,12 @@ const FirstRoute = (props) => {
               name="currency"
             />
             <View style={{ position: "relative" }}>
-              <View style={{ position: "absolute", right: 10, top: 10 }}>
+              <View style={{ position: "absolute", zIndex: 1, right: 10, top: 10 }}>
                 <ProButton
                   label={<AntDesign name="pluscircle" size={14} />}
                   type="transparent"
                   onClick={() => {
+                    console.log('okkk twat')
                     setModalVisible(true);
                   }}
                   padding={"0px"}
@@ -855,6 +856,7 @@ const SecondRoute = (props) => {
   const [productData, setProductData] = useState();
   const [applylastPrice, setApplyLastPrice] = useState(false);
   const [autofillDiscountPrice, setAutofillDiscountPrice] = useState(false);
+  const [autoFillPrice, setAutoFillPrice] = useState(true);
 
   const handleBron = (productId, productName) => {
     setBronModal(true);
@@ -883,9 +885,14 @@ const SecondRoute = (props) => {
         const autofillDiscountPrice = parseData.find(
           (column) => column.dataIndex === "autofillDiscountPrice"
         )?.visible;
+        const autofillPrice = parseData.find(
+          (column) => column.dataIndex === "autofillPrices"
+        )?.visible;
 
         setAutofillDiscountPrice(autofillDiscountPrice);
         setApplyLastPrice(applylastPrice);
+
+        setAutoFillPrice(autofillPrice ?? true);
       }
     }
   }, [userSettings, invoiceInfo, sales_invoice]);
@@ -2662,11 +2669,11 @@ const SecondRoute = (props) => {
           return {
             ...product,
             prices: priceTypes?.[product.id],
-            invoicePrice: productPricesTypeObj?.invoicePrice
+            invoicePrice: autoFillPrice && productPricesTypeObj?.invoicePrice
               ? Number(productPricesTypeObj?.invoicePrice)
               : null,
             autoDiscountedPrice: productPricesTypeObj?.discountedPrice,
-            mainInvoicePrice: productPricesTypeObj?.invoicePrice,
+            mainInvoicePrice: autoFillPrice ? productPricesTypeObj?.invoicePrice : null,
             invoiceQuantity: product?.catalog?.isWithoutSerialNumber
               ? 1
               : product?.quantity === 1
@@ -2698,11 +2705,11 @@ const SecondRoute = (props) => {
         return {
           ...product,
           prices: priceTypes?.[product.id],
-          invoicePrice: productPricesTypeObj?.invoicePrice
+          invoicePrice: autoFillPrice && productPricesTypeObj?.invoicePrice
             ? Number(productPricesTypeObj?.invoicePrice)
             : null,
           autoDiscountedPrice: productPricesTypeObj?.discountedPrice,
-          mainInvoicePrice: productPricesTypeObj?.invoicePrice,
+          mainInvoicePrice: autoFillPrice ? productPricesTypeObj?.invoicePrice : null,
           invoiceQuantity: product?.catalog?.isWithoutSerialNumber
             ? 1
             : product?.quantity === 1
@@ -3206,6 +3213,7 @@ const SecondRoute = (props) => {
         setProductsToHandle={setProductsToHandle}
         applylastPrice={applylastPrice}
         autofillDiscountPrice={autofillDiscountPrice}
+        autoFillPrice={autoFillPrice}
       />
 
       <View style={{ display: "flex", flexDirection: "column" }}>

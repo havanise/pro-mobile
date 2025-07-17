@@ -9,6 +9,7 @@ import {
   Modal,
   Pressable,
   TouchableOpacity,
+  Platform
 } from "react-native";
 import moment from "moment";
 import CheckBox from "expo-checkbox";
@@ -21,6 +22,7 @@ import {
   ProButton,
   ProFormInput,
   SettingModal,
+  CustomModal,
 } from "../../components";
 import { useForm } from "react-hook-form";
 import { Table, Row } from "react-native-reanimated-table";
@@ -1328,7 +1330,256 @@ const AddInvoice = ({
         // setFilter={setFilter}
         filter={invoiceFilters}
       />
-      <Modal
+      {Platform.OS === "ios" ? 
+        <CustomModal visible={isVisible} onClose={() => setIsVisible(false)}>
+           <View style={styles.modalViewIos}>
+            <ProText variant="heading" style={{ color: "black" }}>
+              {allInvoice.find(({ id }) => id === invoice?.[0]?.id)
+                ?.counterparty || allInvoice?.[0]?.counterparty}
+            </ProText>
+
+            <RadioButton.Group
+              onValueChange={(newValue) => {
+                setCheckList({
+                  checkedListAll: [],
+                  ItemsChecked: false,
+                });
+                setVatChecked(newValue ?? 1);
+                handlePageSizeChange(1, pageSize, newValue);
+              }}
+              value={vatChecked}
+            >
+              <View
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text>Qaimələr</Text>
+                  <RadioButton.Android value={1} />
+                </View>
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text>ƏDV qaimələri</Text>
+                  <RadioButton.Android value={2} />
+                </View>
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text>Qaimələr + ƏDV</Text>
+                  <RadioButton.Android value={3} />
+                </View>
+              </View>
+            </RadioButton.Group>
+            <ScrollView>
+              <View
+                display="flex"
+                flexDirection="row"
+                alignItems="flex-end"
+                justifyContent={"space-between"}
+              >
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    marginBottom: 15,
+                    gap: 5,
+                  }}
+                >
+                  <Text style={{ marginRight: 5 }}>Sıra ilə ödəmə</Text>
+                  <CheckBox
+                    onValueChange={(event) => {
+                      setPayOrdered(event);
+                      setPayOrderedValue(0);
+                      handlePageSizeChange(1, 20, vatChecked);
+                    }}
+                    value={payOrdered}
+                  />
+                </View>
+                <View display="flex" flexDirection="row" alignItems="flex-end">
+                  <ProButton
+                    label={
+                      <AntDesign name="filter" size={18} color="#55ab80" />
+                    }
+                    type="transparent"
+                    onClick={() => {
+                      setFilterVisible(true)}}
+                    defaultStyle={{ borderRadius: 5 }}
+                    buttonBorder={styles.buttonStyle}
+                    flex={false}
+                  />
+                  {vatChecked !== 3 && (
+                    <ProButton
+                      label={
+                        <AntDesign name="setting" size={18} color="#55ab80" />
+                      }
+                      type="transparent"
+                      onClick={() => setSettingVisible(true)}
+                      defaultStyle={{ borderRadius: 5 }}
+                      buttonBorder={styles.buttonStyle}
+                      flex={false}
+                    />
+                  )}
+                </View>
+              </View>
+
+              <View>
+                {payOrdered && (
+                  <View
+                    style={{ display: "flex", flexDirection: "row", gap: 5 }}
+                  >
+                    <ProFormInput
+                      label="Ödəniləcək məbləğ"
+                      required={payOrdered}
+                      name="payment"
+                      control={control}
+                      checkPositive
+                      keyboardType="numeric"
+                      width="50%"
+                      handleChange={(value) => {
+                        const re = /^[0-9]{1,9}\.?[0-9]{0,2}$/;
+                        if (re.test(value) && value <= 1000000) {
+                          setPayOrderedValue(Number(value));
+                          return value;
+                        }
+                        if (value === "") {
+                          setPayOrderedValue(0);
+                          return null;
+                        }
+                        return getValues("payment");
+                      }}
+                    />
+                    <ProAsyncSelect
+                      label="Valyuta"
+                      data={currencies}
+                      setData={() => {}}
+                      fetchData={() => {}}
+                      async={false}
+                      filter={{ limit: 1000, withRatesOnly: 1 }}
+                      required={payOrdered}
+                      control={control}
+                      allowClear={false}
+                      name="currency"
+                      width="50%"
+                      // handleSelectValue={(id) => {
+                      //   handleCurrencyChange(id);
+                      // }}
+                    />
+                  </View>
+                )}
+              </View>
+              <ScrollView style={{ marginTop: 15 }} horizontal={true}>
+                <Table borderStyle={{ borderWidth: 1, borderColor: "white" }}>
+                  <Row
+                    data={vatChecked === 3 ? data.vatTableHead : data.tableHead}
+                    widthArr={data.widthArr}
+                    style={styles.head}
+                    textStyle={styles.headText}
+                  />
+                  {data.tableData.map((rowData, index) => (
+                    <Row
+                      key={index}
+                      data={rowData}
+                      widthArr={data.widthArr}
+                      style={styles.rowSection}
+                      textStyle={styles.text}
+                    />
+                  ))}
+                </Table>
+              </ScrollView>
+              <View
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text>Toplam</Text>
+                {payOrdered && (
+                  <Text>
+                    {formatNumberToLocale(
+                      defaultNumberFormat(
+                        checkList.checkedListAll?.reduce(
+                          (total, { remainingInvoiceDebtWithCredit }) =>
+                            math.add(
+                              total,
+                              Number(remainingInvoiceDebtWithCredit) || 0
+                            ),
+                          0
+                        )
+                      )
+                    )}{" "}
+                    {currencies.find(
+                      ({ id }) => id === Number(getValues("currency"))
+                    )?.code || ""}
+                  </Text>
+                )}
+
+                <Text>
+                  {formatNumberToLocale(
+                    defaultNumberFormat(
+                      payOrdered
+                        ? payOrderedValue
+                        : uniqBy(
+                            checkList.checkedListAll,
+                            "invoiceNumber"
+                          )?.reduce(
+                            (total, { mustPay, mustVatPay }) =>
+                              math.add(
+                                total,
+                                Number(mustPay) || 0,
+                                vatChecked === 3 ? Number(mustVatPay || 0) : 0
+                              ),
+                            0
+                          )
+                    )
+                  )}{" "}
+                  {checkList.checkedListAll[0]?.currencyCode || ""}
+                </Text>
+              </View>
+              <View>
+                <Pagination
+                  totalItems={invoicesCount}
+                  pageSize={pageSize}
+                  currentPage={currentPage}
+                  onPageChange={handlePaginationChange}
+                  textStyle={{ fontSize: 6 }}
+                />
+              </View>
+              <View
+                style={{ width: "100%", marginTop: 15, alignItems: "flex-end" }}
+              >
+                <View style={{ width: 150 }}>
+                  <ProButton
+                    label="Təsdiq et"
+                    type="primary"
+                    onClick={handleSubmit(onSubmit)}
+                    padding={"10px 0"}
+                    defaultStyle={{ borderRadius: 10 }}
+                  />
+                </View>
+              </View>
+            </ScrollView>
+           
+          </View>
+        </CustomModal>
+      :<Modal
         animationType="slide"
         transparent={true}
         visible={isVisible}
@@ -1424,7 +1675,6 @@ const AddInvoice = ({
                     }
                     type="transparent"
                     onClick={() => {
-                      console.log('okjjkk')
                       setFilterVisible(true)}}
                     defaultStyle={{ borderRadius: 5 }}
                     buttonBorder={styles.buttonStyle}
@@ -1590,7 +1840,7 @@ const AddInvoice = ({
             </Pressable>
           </View>
         </View>
-      </Modal>
+      </Modal>}
     </>
   );
 };
@@ -1602,11 +1852,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalView: {
-    width: "100%",
-    height: "100%",
+    width: "95%",
+    height: "90%",
     padding: 30,
     backgroundColor: "white",
-    borderRadius: 5,
+    borderRadius: 10,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -1615,6 +1865,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+  },
+  modalViewIos: {
+    width: "95%",
+    height: "90%",
   },
   button: {
     position: "absolute",
