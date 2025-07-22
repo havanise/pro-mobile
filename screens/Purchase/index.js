@@ -2767,6 +2767,7 @@ const SecondRoute = (props) => {
         setProductWithSerialNumbers={setProductWithSerialNumbers}
         productWithSerialNumbers={productWithSerialNumbers}
         setWarningModalVisible={setWarningModalVisible}
+        setVat={setVat}
       />
 
       <View style={{ display: "flex", flexDirection: "column" }}>

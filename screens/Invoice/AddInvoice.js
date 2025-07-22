@@ -64,6 +64,28 @@ const tableData = {
   tableData: [],
 };
 
+const vatTableData = {
+  tableHead: [
+    "",
+    "No",
+    "Qaimə",
+    "Qalıq borc (Əsas)",
+    "Biznes blok",
+    "Tarix",
+    "Müqavilə",
+    "Ödəniş statusu",
+    "Ödəniləcək məbləğ (Əsas)",
+    "Qaimə",
+    "Qalıq borc (ƏDV)",
+    "Ödəniləcək məbləğ (ƏDV)",
+    "İcra statusu",
+    "Əlavə məlumat",
+    "Seç"
+  ],
+  widthArr: [50, 50, 140, 100, 100, 100, 120, 120, 120, 120, 140, 100, 100, 100, 70],
+  tableData: [],
+};
+
 const getTableInvoiceList = (
   invoices,
   type,
@@ -134,6 +156,7 @@ const getTableInvoiceList = (
                 ...currentInvoice,
                 id: `${currentInvoice.id}-vat`,
                 invoiceNumber: `${currentInvoice.invoiceNumber}(VAT)`,
+                label: `${currentInvoice.invoiceNumber}(VAT)`,
                 debtAmount: Number(currentInvoice.remainingInvoiceDebt),
                 isTax: true,
               };
@@ -254,6 +277,7 @@ const AddInvoice = ({
   });
   const [statusData, setStatusData] = useState([]);
   const [data, setData] = useState(tableData);
+  const [vatData, setVatData] = useState(vatTableData);
   const remainingRef = React.useRef([]);
 
   const {
@@ -469,7 +493,7 @@ const AddInvoice = ({
                 keyboardType="numeric"
                 onChangeText={(event) => {
                   handlePriceChange(
-                    id,
+                    item.id,
                     event,
                     item.remainingInvoiceDebtWithCredit,
                     null
@@ -552,6 +576,151 @@ const AddInvoice = ({
       });
     }
   }, [visibleColumns, allBusinessUnits, payOrdered, invoice, checkList]);
+
+  useEffect(() => {
+    let filteredData = invoice?.filter((item) => item?.invoiceType !== 10);
+
+    if (invoice) {
+      setVatData({
+        ...vatTableData,
+        tableData: filteredData?.map((item, index) => {
+         return [ 
+          <CheckBox
+              disabled={
+                (checkList.checkedListAll.length > 0 &&
+                  checkList.checkedListAll[0]?.currencyId !==
+                    item.currencyId) ||
+                payOrdered
+              }
+              onValueChange={(event) => {
+                handleCheckboxes(filteredData[index], event);
+              }}
+              value={
+                !isEmpty(
+                  find(checkList.checkedListAll, (it) => it?.id == item.id)
+                ) ||
+                !isEmpty(
+                    find(
+                        checkList.checkedListAll,
+                        it => it?.id == item?.vatId
+                    )
+                )
+              }
+            />,
+            <Text>{(currentPage - 1) * pageSize + index + 1}</Text>,
+            <Text>{item.invoiceNumber}</Text>,
+            <Text>
+              {formatNumberToLocale(
+                defaultNumberFormat(item.remainingInvoiceDebtWithCredit)
+              )}
+            </Text>,
+            <View>
+              {item.business_unit_name ? (
+                <Text>{item.business_unit_name}</Text>
+              ) : (
+                <Text>{allBusinessUnits[0]?.name || "-"}</Text>
+              )}
+            </View>,
+            <Text>{item.operationDate}</Text>,
+            <Text>{item.contract_serial_number}</Text>,
+            getPaymentStatus(item.paymentStatus),
+            <View>
+              <TextInput
+                value={item.mustPay ? `${item.mustPay}` : undefined}
+                keyboardType="numeric"
+                onChangeText={(event) => {
+                  handlePriceChange(
+                    item.id,
+                    event,
+                    item.remainingInvoiceDebtWithCredit,
+                    null
+                  );
+                }}
+                editable={!payOrdered}
+                style={
+                  !payOrdered
+                    ? {
+                        margin: 10,
+                        padding: 5,
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        borderColor: "#D0DBEA",
+                      }
+                    : {
+                        margin: 10,
+                        padding: 5,
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        borderColor: "#D0DBEA",
+                        backgroundColor: "#ececec",
+                      }
+                }
+              />
+            </View>,
+            <Text>{item.invoiceVatNumber}</Text>,
+            <Text>
+                {formatNumberToLocale(
+                  defaultNumberFormat(item.remainingInvoiceVatDebtWithCredit)
+                )}
+            </Text>,
+            <View>
+              <TextInput
+                value={item.mustVatPay ? `${item.mustVatPay}` : undefined}
+                keyboardType="numeric"
+                onChangeText={(event) => {
+                  handlePriceChange(
+                    item.id,
+                    event,
+                    item.remainingInvoiceVatDebtWithCredit,
+                    'vat'
+                  );
+                }}
+                editable={item?.invoiceVatNumber ? true : false || !payOrdered}
+                style={
+                  !payOrdered || item?.invoiceVatNumber 
+                    ? {
+                        margin: 10,
+                        padding: 5,
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        borderColor: "#D0DBEA",
+                      }
+                    : {
+                        margin: 10,
+                        padding: 5,
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        borderColor: "#D0DBEA",
+                        backgroundColor: "#ececec",
+                      }
+                }
+              />
+            </View>,
+            <Text>{item.statusName}</Text>,
+            <Text>{item.description}</Text>,
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => {
+                setSelectedRow(filteredData[index]);
+                setShowModal(true);
+              }}
+              onLongPress={() => {
+                setSelectedRow(filteredData[index]);
+                setShowModal(true);
+              }}
+            >
+              <AntDesign
+                name="eyeo"
+                size={24}
+                color="black"
+                style={{ padding: 5 }}
+              />
+            </TouchableOpacity>
+          ]
+        }),
+      });
+    }
+  }, [allBusinessUnits, payOrdered, invoice, checkList]);
 
   useEffect(() => {
     getBusinessUnit({}).then((res) => {
@@ -1115,7 +1284,6 @@ const AddInvoice = ({
           sort: order ? order : undefined,
           orderBy: order ? "operationDate" : undefined,
         };
-
         fetchSalesInvoiceList({
           filter: filters,
         }).then((productData) => {
@@ -1190,6 +1358,10 @@ const AddInvoice = ({
     if (config) order = JSON.parse(config).orderConfig;
     const hasDebt = [1, 3].includes(checkType) ? 1 : undefined;
     const hasTaxDebt = [2, 3].includes(checkType) ? 1 : undefined;
+    const businessUnitFilter = !isNil(invFilters)
+    ? invFilters.businessUnitIds
+    : invoiceFilters.businessUnitIds
+
     const filters = {
       contacts: [counterparty],
       invoiceTypes: type === 1 ? [2, 4, 13] : [1, 3, 12],
@@ -1200,19 +1372,15 @@ const AddInvoice = ({
       hasDebt,
       hasTaxDebt,
       invoices: !isNil(invFilters)
-        ? invFilters.invoices
-        : invoiceFilters.invoices,
+      ? invFilters.invoices
+      : invoiceFilters.invoices,
       description: !isNil(invFilters)
-        ? invFilters.description
-        : invoiceFilters.description,
+      ? invFilters.description
+      : invoiceFilters.description,
       businessUnitIds: !isNil(invFilters)
         ? invFilters.businessUnitIds
         : invoiceFilters.businessUnitIds,
-      fromPayment: (
-        !isNil(invFilters)
-          ? invFilters.businessUnitIds
-          : invoiceFilters.businessUnitIds
-      )
+      fromPayment: businessUnitFilter.length > 0
         ? undefined
         : 1,
       sort: order ? order : undefined,
@@ -1487,12 +1655,22 @@ const AddInvoice = ({
               <ScrollView style={{ marginTop: 15 }} horizontal={true}>
                 <Table borderStyle={{ borderWidth: 1, borderColor: "white" }}>
                   <Row
-                    data={vatChecked === 3 ? data.vatTableHead : data.tableHead}
-                    widthArr={data.widthArr}
+                    data={vatChecked === 3 ? vatData.tableHead : data.tableHead}
+                    widthArr={vatChecked === 3 ? vatData.widthArr :data.widthArr}
                     style={styles.head}
                     textStyle={styles.headText}
                   />
-                  {data.tableData.map((rowData, index) => (
+                  {vatChecked === 3 ? 
+                  vatData.tableData.map((rowData, index) => (
+                    <Row
+                      key={index}
+                      data={rowData}
+                      widthArr={vatData.widthArr}
+                      style={styles.rowSection}
+                      textStyle={styles.text}
+                    />
+                  ))
+                  :data.tableData.map((rowData, index) => (
                     <Row
                       key={index}
                       data={rowData}

@@ -12,7 +12,7 @@ import {
 import { AntDesign } from "@expo/vector-icons";
 import ProButton from "../ProButton";
 import Toast from "react-native-toast-message";
-import { getPriceValue } from "../../utils";
+import { getPriceValue, roundTo } from "../../utils";
 
 const math = require("exact-math");
 const BigNumber = require("bignumber.js");
@@ -44,6 +44,7 @@ const AddSerialNumbers = ({
   setWarningModalVisible = () => {},
   productWithSerialNumbers,
   setProductWithSerialNumbers = () => {},
+  setVat
 }) => {
   const { productUniqueId, usedSerialNumber } = selectedRow;
   const [serialNumbers, setSerialNumbers] = useState([]);
@@ -82,6 +83,7 @@ const AddSerialNumbers = ({
       if (selectedProduct.productUniqueId === productUniqueId) {
         quantity = serialNumbers.length;
         productId = selectedProduct.productUniqueId ?? selectedProduct.id;
+       
         const totalPricePerProduct = new BigNumber(
           math.mul(
             Number(selectedProduct.invoicePrice || 0),
@@ -103,8 +105,52 @@ const AddSerialNumbers = ({
             Number(serialNumbers.length || 1)
           )
         );
+      
+        const newTaxAmount =
+          math.div(
+              math.mul(
+                parseFloat(selectedProduct?.taxAmountPercentage ?? 0) ?? 0,
+                parseFloat(
+                  selectedProduct.invoicePrice 
+              ) || 0),
+              100
+            );
+            const totalTaxAmount = math.mul(
+              parseFloat(quantity || 0) !== 0
+                  ? newTaxAmount
+                  : 0,
+              parseFloat(quantity || 0)
+            );
+            const taxAmountWithPrice = math.add(
+              parseFloat(selectedProduct.discountedPrice || 0),
+              math.div(
+                math.mul(
+                  parseFloat(quantity || 0) !== 0
+                  ? newTaxAmount
+                  : 0,
+                  parseFloat(selectedProduct.discountedPrice || 0)
+                ),
+                100
+              )
+            );
+            const totalTaxAmountWithPrice = math.mul(
+              parseFloat(taxAmountWithPrice || 0),
+              parseFloat(quantity || 0)
+            );
+
         return {
           ...selectedProduct,
+          taxAmount:
+            parseFloat(quantity || 0) !== 0
+              ? newTaxAmount
+              : 0,
+          originalTaxAmount:
+            parseFloat(quantity || 0) !== 0
+              ? newTaxAmount
+              : 0,
+          totalTaxAmount: parseFloat(totalTaxAmount),
+          taxAmountWithPrice: parseFloat(taxAmountWithPrice),
+          totalTaxAmountWithPrice: parseFloat(totalTaxAmountWithPrice),
           invoiceQuantity: serialNumbers.length,
           discountedPrice:
             selectedProduct.discountPercentage == 0
@@ -125,8 +171,42 @@ const AddSerialNumbers = ({
       }
       return selectedProduct;
     });
+
+    const filteredProducts = newSelectedProducts?.filter(
+      ({ isVatFree }) => isVatFree === false
+    );
+    const filteredTotalPrice = filteredProducts?.reduce(
+      (totalPrice, { totalPricePerProduct }) =>
+        math.add(totalPrice, parseFloat(totalPricePerProduct || 0) || 0),
+      0
+    );
+
+    const totalTaxRoadPrice = selectedProducts?.reduce(
+      (acc, product) => math.add(acc, Number(product?.totalRoadTaxAmount ?? 0)),
+      0
+    );
+
+    const newVatAmount = filteredProducts?.reduce(
+      (totalVat, { totalTaxAmount }) =>
+        math.add(totalVat, parseFloat(totalTaxAmount || 0) || 0),
+      0
+    );
+    const newVatPercentage = roundTo(
+      math.div(
+        math.mul(Number(newVatAmount || 0) || 0, 100),
+        math.sub(
+          Number(filteredTotalPrice || 1) || 1,
+          Number(totalTaxRoadPrice || 0) || 0
+        ) || 1
+      ),
+      4
+    );
+
+    setVat({
+      percentage: newVatPercentage,
+      amount: newVatAmount,
+    });
     setSelectedProducts(newSelectedProducts);
-    // handleQuantityChange(productId, quantity);
     setSerialModalIsVisible(false);
   };
 

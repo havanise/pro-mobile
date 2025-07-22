@@ -11,6 +11,10 @@ import {
   ScrollView,
   Platform
 } from "react-native";
+import uuid from "react-uuid";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import XLSX from "xlsx";
 import { Table, Row } from "react-native-reanimated-table";
 import { createSettings, fetchReportList } from "../../../api";
 import { PandL_ForDays_TABLE_SETTING_DATA } from "../../../utils/table-config/report";

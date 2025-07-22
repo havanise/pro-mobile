@@ -1474,7 +1474,10 @@ const Invoice = ({ navigation, route }) => {
                   status={
                     checkedAdvance === "balance" ? "checked" : "unchecked"
                   }
-                  onPress={() => setCheckedAdvance("balance")}
+                  onPress={() => {
+                    setCheckedAdvance("balance")
+                    setUseBalance(true)
+                  }}
                 />
                 <Text>Təhtəl hesabdan ödə</Text>
               </View>

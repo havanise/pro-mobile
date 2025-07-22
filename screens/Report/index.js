@@ -78,23 +78,26 @@ const Report = ({ navigation }) => {
 
   useEffect(() => {
     if (
-      permissions.find((item) => item.key === "profit_and_loss_report")
-        .permission !== 0 &&
-      permissions.find((item) => item.key === "stock_product").permission !== 0
-    ) {
-      setRoutes([
-        { key: "first", title: "Mənfəət və Zərər" },
-        { key: "second", title: "Məhsullar" },
-      ]);
-    } else if (
-      permissions.find((item) => item.key === "profit_and_loss_report")
-        .permission !== 0
-    ) {
-      setRoutes([{ key: "first", title: "Mənfəət və Zərər" }]);
-    } else if (
-      permissions.find((item) => item.key === "stock_product").permission !== 0
-    ) {
-      setRoutes([{ key: "second", title: "Məhsullar" }]);
+          permissions.find((item) => item.key === "profit_and_loss_report")
+            .permission !== 0 &&
+          permissions.find((item) => item.key === "stock_product").permission !== 0
+        ) {
+          setRoutes([
+            { key: "first", title: "Mənfəət və Zərər" },
+            { key: "second", title: "Məhsullar" },
+          ]);
+          setIndex(0);
+        } else if (
+          permissions.find((item) => item.key === "profit_and_loss_report")
+            .permission !== 0
+        ) {
+          setRoutes([{ key: "first", title: "Mənfəət və Zərər" }]);
+          setIndex(0);
+        } else if (
+          permissions.find((item) => item.key === "stock_product").permission !== 0
+        ) {
+        setRoutes([{ key: "second", title: "Məhsullar" }]);
+        setIndex(0);
     }
   }, [permissions]);
 
@@ -147,6 +150,7 @@ const Report = ({ navigation }) => {
   const renderTabBar = (props) => (
     <TabBar {...props} renderBadge={renderBadge} style={styles.tabbar} />
   );
+
   return (
     <SafeAreaView>
       <Container>
@@ -176,7 +180,7 @@ const Report = ({ navigation }) => {
           height: "100%",
         }}
       >
-        <TabView
+        {routes.length > 0 && (<TabView
           navigationState={{ index, routes }}
           renderScene={renderScene}
           onIndexChange={(newIndex) => {
@@ -187,12 +191,9 @@ const Report = ({ navigation }) => {
             }
             setIndex(newIndex);
           }}
-          initialLayout={{ width: layout?.width || Dimensions.get('window').width }}
           renderTabBar={renderTabBar}
           swipeEnabled={false}
-          lazy
-          lazyPreloadDistance={1}
-        />
+        />)}
       </View>
     </SafeAreaView>
   );

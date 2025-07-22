@@ -9,6 +9,7 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  Platform
 } from "react-native";
 import { Table, Row } from "react-native-reanimated-table";
 import { filter as filterLodash } from "lodash";
@@ -27,6 +28,10 @@ import {
   ProTooltip,
   SettingModal,
 } from "../../../components";
+import uuid from "react-uuid";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import XLSX from "xlsx";
 import { createSettings, fetchProductCount, fetchProducts } from "../../../api";
 import {
   defaultNumberFormat,
@@ -228,6 +233,242 @@ const Products = (props) => {
       exportDataToExcel(productData);
       setExportModal(false);
     });
+  };
+
+  const exportDataToExcel = async (exData) => {
+    
+    const columnClone = [...visibleColumns];
+    const data = (exData === false ? [{}] : exData).map(
+      (item, index) => {
+        const arr = [];
+        const currentMeasurement = item.unitOfMeasurements?.find(
+          (unit) => unit?.id === item.unitOfMeasurementID
+        );
+        const salesDraftQuantity =
+        item.unitOfMeasurements?.length === 1
+          ? item.salesDraftQuantity
+          : math.div(
+              Number(item.salesDraftQuantity || 0),
+              Number(currentMeasurement?.coefficientRelativeToMain || 1)
+            );
+        const bronQuantity =
+          item.unitOfMeasurements?.length === 1
+            ? item.bronQuantity
+            : math.div(
+                Number(item.bronQuantity || 0),
+                Number(currentMeasurement?.coefficientRelativeToMain || 1)
+              );
+        columnClone.includes("isServiceType") &&
+          (arr[columnClone.indexOf("isServiceType")] = {
+            "Məhsul tipi": item.isServiceType ? "Xidmət" : "Məhsul"
+          });
+        columnClone.includes("isWithoutSerialNumber") &&
+          (arr[columnClone.indexOf("isWithoutSerialNumber")] = {
+            "Seriya nömrəsi":
+              item.isWithoutSerialNumber === false ? "Hə" : "Yox",
+          });
+        columnClone.includes("parentCatalogName") &&
+          (arr[columnClone.indexOf("parentCatalogName")] = {
+            Kataloq: item.parentCatalogName,
+          });
+        columnClone.includes("catalogName") &&
+          (arr[columnClone.indexOf("catalogName")] = {
+            "Alt Kataloq":
+              item.catalogName,
+          });
+        columnClone.includes("attachmentName") &&
+          (arr[columnClone.indexOf("attachmentName")] = {
+            Şəkil: <View style={{ display: "flex", flexDirection: "row" }}>
+            <Image
+              src={item.attachmentUrl}
+              style={{ width: 40, height: 40 }}
+            />
+          </View>,
+          });
+        columnClone.includes("name") &&
+          (arr[columnClone.indexOf("name")] = {
+            "Məhsul adı": item.name || "-",
+          });
+        columnClone.includes("bronQuantity") &&
+          (arr[columnClone.indexOf("bronQuantity")] = {
+            "Bron sayı": formatNumberToLocale(roundTo(Number(bronQuantity || 0), 4)),
+          });
+        columnClone.includes("consignmentQuantity") &&
+          (arr[columnClone.indexOf("consignmentQuantity")] = {
+            "Konsiqnasiya sayı": formatNumberToLocale(
+              roundTo(Number(item.consignmentQuantity || 0), 4)
+            ),
+          });
+        columnClone.includes("totalQuantity") &&
+          (arr[columnClone.indexOf("totalQuantity")] = {
+            "Cəmi say": formatNumberToLocale(
+              roundTo(Number(item.totalQuantity || 0), 4)
+            ) || "-",
+          });
+        columnClone.includes("idNumber") &&
+          (arr[columnClone.indexOf("idNumber")] = {
+            "ID nömrə": item.idNumber || "-",
+          });
+        columnClone.includes("manufacturerName") &&
+          (arr[columnClone.indexOf("manufacturerName")] = {
+            İstehsalçı: `${item.manufacturerName} ${item.manufacturerSurname && ""}`,
+          });
+        columnClone.includes("productCode") &&
+          (arr[columnClone.indexOf("productCode")] = {
+            "Məhsul kodu":
+              item.productCode === true || "-",
+          });
+        columnClone.includes("unitOfMeasurementName") &&
+          (arr[columnClone.indexOf("unitOfMeasurementName")] = {
+            "Ölçü vahidi": item.unitOfMeasurementName || "-",
+          });
+        columnClone.includes("roadTax") &&
+          (arr[columnClone.indexOf("roadTax")] = {
+            "Yol vergisi": item.roadTax
+            ? `${formatNumberToLocale(Number(item.roadTax) || 0)}
+                  ${item.currencyCode || item.mainCurrencyCode}`
+            : "-",
+          });
+        columnClone.includes("pricePerUnit") &&
+          (arr[columnClone.indexOf("pricePerUnit")] = {
+            Qiymət: item.pricePerUnit
+              ? `${formatNumberToLocale(Number(item.pricePerUnit) || 0)}
+                    ${item.currencyCode || item.mainCurrencyCode}`
+              : "-",
+          });
+
+        columnClone.includes("quantity") &&
+          (arr[columnClone.indexOf("quantity")] = {
+            "Anbar sayı": item.quantity || "-",
+          });
+        columnClone.includes("minPrice") &&
+          (arr[columnClone.indexOf("minPrice")] = {
+            "Maya dəyəri (min)": formatNumberToLocale(defaultNumberFormat(item.minPrice)) || "-",
+          });
+        columnClone.includes("maxPrice") &&
+          (arr[columnClone.indexOf("maxPrice")] = {
+            "Maya dəyəri (max)":
+              formatNumberToLocale(defaultNumberFormat(item.maxPrice)) || "-",
+          });
+        columnClone.includes("avgPrice") &&
+          (arr[columnClone.indexOf("avgPrice")] = {
+            "Maya dəyəri (orta)":
+              formatNumberToLocale(defaultNumberFormat(item.avgPrice)) || "-",
+          });
+        columnClone.includes("lastPrice") &&
+          (arr[
+            columnClone.indexOf("lastPrice")
+          ] = {
+            "Maya dəyəri (son)":
+              formatNumberToLocale(defaultNumberFormat(item.lastPrice)) || "-",
+          });
+        columnClone.includes("lifetime") &&
+          (arr[
+            columnClone.indexOf("lifetime")
+          ] = {
+            "İstismar müddəti":
+              formatNumberToLocale(defaultNumberFormat(item.lifetime)) || "-",
+          });
+        columnClone.includes(
+          "minimumStockQuantity"
+        ) &&
+          (arr[
+            columnClone.indexOf(
+              "minimumStockQuantity"
+            )
+          ] = {
+            "Minimal qalıq":
+              formatNumberToLocale(
+                defaultNumberFormat(item.minimumStockQuantity)
+              ) || "-",
+          });
+        columnClone.includes("isDeleted") &&
+          (arr[columnClone.indexOf("isDeleted")] = {
+            "Status":
+              item.isDeleted ? "Silinib" : "Aktiv",
+          });
+        columnClone.includes("labels") &&
+          (arr[columnClone.indexOf("labels")] = {
+            "Etiket": item.labels[0]?.name,
+          });
+        columnClone.includes("salesDraftQuantity") &&
+          (arr[columnClone.indexOf("salesDraftQuantity")] = {
+            Planlama:
+              formatNumberToLocale(
+                roundTo(Number(salesDraftQuantity || 0), 4)
+              ),
+          });
+        columnClone.includes("brandName") &&
+          (arr[columnClone.indexOf("brandName")] = {
+            Marka: item.brandName,
+          });
+        columnClone.includes("barcode") &&
+          (arr[columnClone.indexOf("barcode")] = {
+            Barkod: item.barcode,
+          });
+        columnClone.includes("description") &&
+          (arr[columnClone.indexOf("description")] = {
+            "Əlavə məlumat": item.descrption,
+          });
+
+        arr.unshift({ No: index + 1 });
+
+        return Object.assign({}, ...arr);
+      }
+    );
+    let sample_data_to_export = data;
+
+    var ws = XLSX.utils.json_to_sheet(sample_data_to_export);
+    var wb = XLSX.utils.book_new();
+    var wscols = [];
+    var cols_width = 20; // Default cell width
+    wscols.push({
+      wch: 12,
+    }); // Set 1stColumn @32 character wide
+    for (var i = 0; i < data.length; i++) {
+      // Increase/Decrease condition_value based on the nmbr of columns you've on your excel sheet
+      wscols.push({
+        wch: cols_width,
+      });
+    }
+    ws["!cols"] = wscols;
+    XLSX.utils.book_append_sheet(wb, ws, "Cities");
+
+    const base64 = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
+    const filename = FileSystem.documentDirectory + `report${uuid()}}.xlsx`;
+
+
+    if (Platform.OS === 'android') {
+      const permissions =
+        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+
+      if (permissions.granted) {
+        await FileSystem.StorageAccessFramework.createFileAsync(
+          permissions.directoryUri,
+          filename,
+          "application/xls"
+        )
+          .then(async (uri) => {
+            await FileSystem.writeAsStringAsync(uri, base64, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+          })
+          .catch((e) => console.log(e));
+      } else {
+        Sharing.shareAsync(filename);
+      }
+    } else if (Platform.OS === 'ios') {
+      const fileUri = FileSystem.documentDirectory + `invoice${uuid()}}.xlsx`;
+
+      await FileSystem.writeAsStringAsync(fileUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      await Sharing.shareAsync(fileUri, {
+        UTI: "com.microsoft.excel.xlsx",
+        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+    }
   };
 
   const handleTooltipClose = () => {

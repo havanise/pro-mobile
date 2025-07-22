@@ -19,7 +19,8 @@
       "bundleIdentifier": "com.havanise.prospectmobilenew",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "2"
     },
     "android": {
       "softwareKeyboardLayoutMode": "pan",
