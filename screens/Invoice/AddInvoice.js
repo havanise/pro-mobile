@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TextInput,
-  useWindowDimensions,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Modal,
@@ -1404,9 +1404,26 @@ const AddInvoice = ({
     return (() => setCurrentPage(value))();
   };
 
-  const handlePageSizeChange = (_, size, check) => {
+  const handlePageSizeChange = (_, size, check, fromRadio) => {
     setPageSize(size);
-    handlePaginationChange(1, check, invoiceFilters, size);
+    if (fromRadio) {
+      setInvoiceFilters({
+        invoices: [],
+        businessUnitIds: [],
+        description: "",
+        sort: "",
+        orderBy: "",
+      })
+      handlePaginationChange(1, check, {
+        invoices: [],
+        businessUnitIds: [],
+        description: "",
+        sort: "",
+        orderBy: "",
+      }, size);
+    } else {
+      handlePaginationChange(1, check, invoiceFilters, size);
+    }
   };
 
   const onSubmit = (values) => {
@@ -1513,7 +1530,7 @@ const AddInvoice = ({
                   ItemsChecked: false,
                 });
                 setVatChecked(newValue ?? 1);
-                handlePageSizeChange(1, pageSize, newValue);
+                handlePageSizeChange(1, pageSize, newValue, true);
               }}
               value={vatChecked}
             >
@@ -1653,33 +1670,37 @@ const AddInvoice = ({
                 )}
               </View>
               <ScrollView style={{ marginTop: 15 }} horizontal={true}>
-                <Table borderStyle={{ borderWidth: 1, borderColor: "white" }}>
-                  <Row
-                    data={vatChecked === 3 ? vatData.tableHead : data.tableHead}
-                    widthArr={vatChecked === 3 ? vatData.widthArr :data.widthArr}
-                    style={styles.head}
-                    textStyle={styles.headText}
-                  />
-                  {vatChecked === 3 ? 
-                  vatData.tableData.map((rowData, index) => (
+                {tableLoading ?  (
+                      <ActivityIndicator color={"#37B874"} />
+                    ) : (
+                    <Table borderStyle={{ borderWidth: 1, borderColor: "white" }}>
                     <Row
-                      key={index}
-                      data={rowData}
-                      widthArr={vatData.widthArr}
-                      style={styles.rowSection}
-                      textStyle={styles.text}
+                      data={vatChecked === 3 ? vatData.tableHead : data.tableHead}
+                      widthArr={vatChecked === 3 ? vatData.widthArr :data.widthArr}
+                      style={styles.head}
+                      textStyle={styles.headText}
                     />
-                  ))
-                  :data.tableData.map((rowData, index) => (
-                    <Row
-                      key={index}
-                      data={rowData}
-                      widthArr={data.widthArr}
-                      style={styles.rowSection}
-                      textStyle={styles.text}
-                    />
-                  ))}
-                </Table>
+                    {vatChecked === 3 ? 
+                    vatData.tableData.map((rowData, index) => (
+                      <Row
+                        key={index}
+                        data={rowData}
+                        widthArr={vatData.widthArr}
+                        style={styles.rowSection}
+                        textStyle={styles.text}
+                      />
+                    ))
+                    :data.tableData.map((rowData, index) => (
+                      <Row
+                        key={index}
+                        data={rowData}
+                        widthArr={data.widthArr}
+                        style={styles.rowSection}
+                        textStyle={styles.text}
+                      />
+                    ))}
+                  </Table>
+                  )}
               </ScrollView>
               <View
                 style={{

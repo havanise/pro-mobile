@@ -3747,7 +3747,7 @@ const SecondRoute = (props) => {
                             </TouchableOpacity>
                           )}
                           {getPermission(selectedRow) === 2 &&
-                            [4, 8, 9].includes(selectedRow?.transactionType) &&
+                            [4, 8, 9, 10].includes(selectedRow?.transactionType) &&
                             (tenant?.isAdmin ||
                               isTransactionTypeAllowed(
                                 selectedRow?.transactionType,
@@ -3769,6 +3769,7 @@ const SecondRoute = (props) => {
                                       ids: [selectedRow.cashboxTransactionId],
                                     },
                                   }).then((data) => {
+                                    console.log(data, 'data')
                                     setModalVisible(false)
                                     switch (selectedRow.transactionType) {
                                       case 4:
@@ -3788,6 +3789,7 @@ const SecondRoute = (props) => {
                                         });
                                         break;
                                       case 9:
+                                      case 10:
                                         navigation.push("Invoice", {
                                           id: selectedRow.cashboxTransactionId,
                                           businessUnit:

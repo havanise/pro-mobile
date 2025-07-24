@@ -77,7 +77,7 @@ const AddInvoiceFilterModal = ({
                   filter={{}}
                   notForm
                   handleSelectValue={({ list }) => {
-                    updateFilter("invoices", list);
+                    updateFilter("invoices", list.map((item)=> item.replace("-vat", "")));
                   }}
                 />
               </View>
