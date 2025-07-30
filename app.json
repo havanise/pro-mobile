@@ -20,6 +20,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
+      "icon": "./assets/images/appLogoIos.png",
       "buildNumber": "2"
     },
     "android": {
