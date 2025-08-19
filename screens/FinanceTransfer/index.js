@@ -5,6 +5,7 @@ import {
   useWindowDimensions,
   ScrollView,
   StyleSheet,
+  Platform,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import moment from "moment";
@@ -41,6 +42,7 @@ import {
   formatNumberToLocale,
   roundToUp,
 } from "../../utils";
+import { changeNumber } from "../../utils/constants";
 
 const math = require("exact-math");
 
@@ -1145,6 +1147,9 @@ const FinanceTransfer = ({ navigation, route }) => {
                 control={control}
                 width="70%"
                 keyboardType="numeric"
+                handleChange={(val) => {
+                  setValue("paymentAmount", changeNumber(val));
+                }}
               />
               <ProAsyncSelect
                 label="Valyuta"

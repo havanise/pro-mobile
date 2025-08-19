@@ -42,6 +42,7 @@ import { getPaymentStatus } from "../Modul";
 import Pagination from "@cherry-soft/react-native-basic-pagination";
 import { Add_Multiple_Inv_Modal_Table_Data } from "../../utils/table-config/financeModule";
 import SaleDetail from "../Modul/SaleDetail";
+import { changeNumber } from "../../utils/constants";
 
 const math = require("exact-math");
 const BigNumber = require("bignumber.js");
@@ -823,7 +824,7 @@ const AddInvoice = ({
       setCheckList({
         checkedListAll: newInv
           .reduce((acc, curr) => {
-            if (curr.vatId && vatChecked === 3) {
+            if (curr?.vatId && vatChecked === 3) {
               acc.push(...addInvoiceItems(curr));
             } else {
               acc.push(curr);
@@ -1639,15 +1640,18 @@ const AddInvoice = ({
                       width="50%"
                       handleChange={(value) => {
                         const re = /^[0-9]{1,9}\.?[0-9]{0,2}$/;
-                        if (re.test(value) && value <= 1000000) {
-                          setPayOrderedValue(Number(value));
-                          return value;
+                        let checkPrice = Platform.OS === 'ios' ? changeNumber(value) : value
+                        setModalFieldsValue("payment", checkPrice);
+                        if (re.test(checkPrice) && checkPrice <= 1000000) {
+                          setPayOrderedValue(Number(checkPrice));
+                          return checkPrice;
                         }
-                        if (value === "") {
+                        if (checkPrice === "") {
                           setPayOrderedValue(0);
                           return null;
                         }
-                        return getValues("payment");
+                        
+                        return checkPrice;
                       }}
                     />
                     <ProAsyncSelect

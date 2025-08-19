@@ -1,4 +1,5 @@
 import moment from "moment";
+import { Platform } from "react-native";
 
 export const accountTypes = [
   { id: 1, value: 1, label: "Nağd" },
@@ -7,10 +8,21 @@ export const accountTypes = [
   { id: 4, value: 4, label: "Digər" },
 ];
 
-export const re_paymentAmount = /^[0-9]{1,9}\.?[0-9]{0,2}$/;
-export const re_amount = /^[0-9]{0,12}\.?[0-9]{0,4}$/;
-export const regex_amount = /^[0-9]{0,13}\.?[0-9]{0,13}$/;
-export const re_percent = /^[0-9]{1,9}\.?[0-9]{0,4}$/;
+export const changeNumber = (input) => {
+  if (typeof input === 'string') {
+    input = input.replace(',', '.');
+  }
+  return input;
+}
+
+export const parseNumber = (input) => {
+  return Number(changeNumber(input));
+}
+
+export const re_paymentAmount = Platform.OS === "ios" ? /^[0-9]{1,9}[.,]?[0-9]{0,2}$/ : /^[0-9]{1,9}\.?[0-9]{0,2}$/;
+export const re_amount = Platform.OS === "ios" ? /^[0-9]{0,12}[.,]?[0-9]{0,4}$/ : /^[0-9]{0,12}\.?[0-9]{0,4}$/;
+export const regex_amount = Platform.OS === "ios" ? /^[0-9]{0,13}[.,]?[0-9]{0,13}$/ : /^[0-9]{0,13}\.?[0-9]{0,13}$/;
+export const re_percent = Platform.OS === "ios" ? /^[0-9]{1,9}[.,]?[0-9]{0,4}$/ : /^[0-9]{1,9}\.?[0-9]{0,4}$/;
 
 export const currentYear = moment().year();
 export const currentMonth = moment().month() + 1;

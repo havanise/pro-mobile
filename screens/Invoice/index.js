@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  Platform,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import moment from "moment";
@@ -56,6 +57,7 @@ import Dept from "./Dept";
 import { InvoiceAmountOfTransaction } from "./InvoiceAmountOfTransaction";
 import AddInvoice from "./AddInvoice";
 import { getInvoiceList, handleReceivablesPayables } from "./actions";
+import { changeNumber } from "../../utils/constants";
 
 const math = require("exact-math");
 const BigNumber = require("bignumber.js");
@@ -1812,7 +1814,8 @@ const Invoice = ({ navigation, route }) => {
                 width="70%"
                 keyboardType="numeric"
                 handleChange={(val) => {
-                  setValue("amount", `${val}`);
+                  setValue("paymentAmount", Platform.OS === 'ios'? changeNumber(`${val}`) : `${val}`);
+                  setValue("amount", Platform.OS === 'ios'? changeNumber(`${val}`) : `${val}`);
                 }}
                 disabled={selectedInvoices?.length > 1}
               />

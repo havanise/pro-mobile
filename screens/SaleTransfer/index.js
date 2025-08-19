@@ -8,8 +8,7 @@ import {
   StyleSheet,
   Alert,
   Modal,
-  Pressable,
-  TouchableOpacity,
+  Platform,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import moment from "moment";
@@ -80,6 +79,7 @@ import AddFromCatalog from "../../components/AddFromCatalog";
 import InvoiceModalWithSN from "../../components/InvoiceModalWithSN";
 import InvoiceModalWithoutSN from "../../components/InvoiceModalWithoutSN";
 import { backgroundColor } from "@shopify/restyle";
+import { changeNumber } from "../../utils/constants";
 
 const math = require("exact-math");
 const BigNumber = require("bignumber.js");
@@ -634,11 +634,12 @@ const SecondRoute = (props) => {
     transfer = false,
     totalPrice
   ) => {
+    let checkQuantity = Platform.OS === 'ios' ? changeNumber(newQuantity) : newQuantity
     const limit = Number(quantity) >= 0 ? Number(quantity) : 10000000;
-    if (re_amount.test(newQuantity) && (newQuantity <= limit || draftMode)) {
-      setProductQuantity(productId, newQuantity, transfer, totalPrice);
+    if (re_amount.test(checkQuantity) && (checkQuantity <= limit || draftMode)) {
+      setProductQuantity(productId, checkQuantity, transfer, totalPrice);
     }
-    if (newQuantity === "") {
+    if (checkQuantity === "") {
       setProductQuantity(productId, undefined, transfer);
     }
   };
