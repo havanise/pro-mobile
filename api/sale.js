@@ -84,14 +84,19 @@ export const fetchProductCount = (props) => {
 };
 
 export const getCompositon = async (prop) => {
-  return client(`/sales/products/materials/${Array.isArray(prop) ? prop?.[0]?.id : prop.id}`, {
-    method: "GET",
-    data: Array.isArray(prop) ? prop?.[0]?.filters : prop.filters,
-  });
+  return client(
+    `/sales/products/materials/${
+      Array.isArray(prop) ? prop?.[0]?.id : prop.id
+    }`,
+    {
+      method: "GET",
+      data: Array.isArray(prop) ? prop?.[0]?.filters : prop.filters,
+    }
+  );
 };
 
 export const createCompositon = async (props) => {
-  console.log(props)
+  console.log(props);
   return client(`/sales/products/materials/${props.id}`, {
     method: "POST",
     data: props.data,
@@ -281,7 +286,7 @@ export const fetchSalesInvoiceList = (prop) => {
 export const fetchSalesInvoicesCount = (prop) => {
   return client(`/sales/invoices/count`, {
     method: "GET",
-    filters: prop?.filter,
+    filters: Array.isArray(prop) ? prop?.[0]?.filter : prop?.filter,
   });
 };
 
@@ -296,6 +301,13 @@ export const fetchStatusOperations = (prop) => {
   return client(`/sales/status/operation-settings`, {
     method: "GET",
     filters: prop?.filter,
+  });
+};
+
+export const fetchStatuses = (prop) => {
+  return client(`/sales/status`, {
+    method: "GET",
+    filters: Array.isArray(prop) ? prop?.[0]?.filter : prop?.filter,
   });
 };
 

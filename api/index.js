@@ -40,6 +40,7 @@ export {
   fetchSalesInvoiceList,
   fetchSalesInvoicesCount,
   fetchStatusOperations,
+  fetchStatuses,
   editInvoiceStatus,
   fetchBarterInvoices,
   getCost,
@@ -53,7 +54,11 @@ export {
   getCompositon,
 } from "./sale";
 
-export { fetchReportList } from "./reports";
+export {
+  fetchReportList,
+  fetchRecievables,
+  fetchRecievablesCount,
+} from "./reports";
 
 export {
   getCounterparties,

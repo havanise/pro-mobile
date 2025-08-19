@@ -23,9 +23,10 @@ export const fetchAllUserSettings = async () => {
   });
 };
 
-export const getBusinessUnit = () => {
+export const getBusinessUnit = (prop) => {
   return client(`/business-unit/business-units`, {
     method: "GET",
+    filters: Array.isArray(prop) ? prop?.[0]?.filters : prop.filters,
   });
 };
 

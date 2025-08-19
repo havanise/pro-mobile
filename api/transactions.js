@@ -3,14 +3,14 @@ import { client } from "../api";
 export const fetchTransactionList = (prop) => {
   return client(`/transactions`, {
     method: "GET",
-    filters: prop?.filter,
+    filters: Array.isArray(prop) ? prop?.[0] : prop?.filter,
   });
 };
 
 export const fetchTransactionsCount = (prop) => {
   return client(`/transactions/count`, {
     method: "GET",
-    filters: prop?.filter,
+    filters: Array.isArray(prop) ? prop?.[0] : prop?.filter,
   });
 };
 
@@ -23,7 +23,9 @@ export const getExpenseCatalogs = (prop) => {
 
 export const deleteTransaction = (prop) => {
   return client(
-    `/transaction/cashbox/${Array.isArray(prop) ? prop?.[0]?.apiEnd : prop.apiEnd}`,
+    `/transaction/cashbox/${
+      Array.isArray(prop) ? prop?.[0]?.apiEnd : prop.apiEnd
+    }`,
     {
       method: "DELETE",
       filters: Array.isArray(prop) ? prop?.[0]?.filters : prop.filters,
@@ -32,8 +34,11 @@ export const deleteTransaction = (prop) => {
 };
 
 export const fetchGroupedTransaction = (prop) => {
-  return client(`/transactions/invoice-payments-grouped-by-type/${prop?.transactionId}`, {
-    method: "GET",
-    filters: prop?.filter,
-  });
+  return client(
+    `/transactions/invoice-payments-grouped-by-type/${prop?.transactionId}`,
+    {
+      method: "GET",
+      filters: prop?.filter,
+    }
+  );
 };

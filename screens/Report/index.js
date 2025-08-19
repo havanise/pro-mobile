@@ -18,6 +18,7 @@ import { Container } from "./styles";
 import { fetchMainCurrency } from "../../api/currencies";
 import ProfitAndLoss from "./ProfitAndLoss";
 import Products from "./Products";
+import Recievables from "./Recievables";
 
 const Report = ({ navigation }) => {
   useContext(TenantContext);
@@ -78,26 +79,33 @@ const Report = ({ navigation }) => {
 
   useEffect(() => {
     if (
-          permissions.find((item) => item.key === "profit_and_loss_report")
-            .permission !== 0 &&
-          permissions.find((item) => item.key === "stock_product").permission !== 0
-        ) {
-          setRoutes([
-            { key: "first", title: "Mənfəət və Zərər" },
-            { key: "second", title: "Məhsullar" },
-          ]);
-          setIndex(0);
-        } else if (
-          permissions.find((item) => item.key === "profit_and_loss_report")
-            .permission !== 0
-        ) {
-          setRoutes([{ key: "first", title: "Mənfəət və Zərər" }]);
-          setIndex(0);
-        } else if (
-          permissions.find((item) => item.key === "stock_product").permission !== 0
-        ) {
-        setRoutes([{ key: "second", title: "Məhsullar" }]);
-        setIndex(0);
+      permissions.find((item) => item.key === "profit_and_loss_report")
+        .permission !== 0 &&
+      permissions.find((item) => item.key === "stock_product").permission !== 0
+    ) {
+      setRoutes([
+        { key: "first", title: "Mənfəət və Zərər" },
+        { key: "second", title: "Məhsullar" },
+        { key: "third", title: "Debitor borc" },
+      ]);
+      setIndex(0);
+    } else if (
+      permissions.find((item) => item.key === "profit_and_loss_report")
+        .permission !== 0
+    ) {
+      setRoutes([
+        { key: "first", title: "Mənfəət və Zərər" },
+        { key: "third", title: "Debitor borc" },
+      ]);
+      setIndex(0);
+    } else if (
+      permissions.find((item) => item.key === "stock_product").permission !== 0
+    ) {
+      setRoutes([
+        { key: "second", title: "Məhsullar" },
+        { key: "third", title: "Debitor borc" },
+      ]);
+      setIndex(0);
     }
   }, [permissions]);
 
@@ -120,6 +128,20 @@ const Report = ({ navigation }) => {
       case "second":
         return (
           <Products
+            navigation={navigation}
+            BUSINESS_TKN_UNIT={BUSINESS_TKN_UNIT}
+            profile={profile}
+            permissionsByKeyValue={permissionsByKeyValue}
+            mainCurrency={mainCurrency}
+            tableSettings={tableSettings}
+            setTableSettings={setTableSettings}
+            onBlur={isFilterTabBlurred}
+          />
+        );
+
+      case "third":
+        return (
+          <Recievables
             navigation={navigation}
             BUSINESS_TKN_UNIT={BUSINESS_TKN_UNIT}
             profile={profile}
@@ -180,20 +202,22 @@ const Report = ({ navigation }) => {
           height: "100%",
         }}
       >
-        {routes.length > 0 && (<TabView
-          navigationState={{ index, routes }}
-          renderScene={renderScene}
-          onIndexChange={(newIndex) => {
-            if (newIndex !== 1) {
-              setIsFilterTabBlurred(true); // Tab is blurred
-            } else {
-              setIsFilterTabBlurred(false); // Tab is active
-            }
-            setIndex(newIndex);
-          }}
-          renderTabBar={renderTabBar}
-          swipeEnabled={false}
-        />)}
+        {routes.length > 0 && (
+          <TabView
+            navigationState={{ index, routes }}
+            renderScene={renderScene}
+            onIndexChange={(newIndex) => {
+              if (newIndex !== 1) {
+                setIsFilterTabBlurred(true); // Tab is blurred
+              } else {
+                setIsFilterTabBlurred(false); // Tab is active
+              }
+              setIndex(newIndex);
+            }}
+            renderTabBar={renderTabBar}
+            swipeEnabled={false}
+          />
+        )}
       </View>
     </SafeAreaView>
   );

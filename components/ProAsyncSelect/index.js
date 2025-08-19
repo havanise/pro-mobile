@@ -66,6 +66,7 @@ const ProAsyncSelect = ({
   combineValue = false,
   withProductCode = false,
   searchName = false,
+  allowClearNotForm = false,
 }) => {
   const [nextPage, setNextPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -98,7 +99,10 @@ const ProAsyncSelect = ({
         const ids = new Set(
           resp.map((d) => {
             return `${d.id}${
-              d.unitOfMeasurementId && !d.id?.toString().includes(d.unitOfMeasurementId.toString()) ? d.unitOfMeasurementId : ""
+              d.unitOfMeasurementId &&
+              !d.id?.toString().includes(d.unitOfMeasurementId.toString())
+                ? d.unitOfMeasurementId
+                : ""
             }`;
           })
         );
@@ -163,7 +167,7 @@ const ProAsyncSelect = ({
 
   useEffect(() => {
     if (isMulti && !notForm && defaultValue && multiSelected.length === 0) {
-      setMultiSelected(defaultValue)
+      setMultiSelected(defaultValue);
     }
   }, [isMulti, notForm, defaultValue]);
 
@@ -180,6 +184,14 @@ const ProAsyncSelect = ({
       });
     }
   };
+
+  console.log(
+    notValue
+      ? undefined
+      : selectedValueFromParent
+      ? selectedValueFromParent
+      : selectedValue
+  );
 
   return (
     <View
@@ -307,12 +319,54 @@ const ProAsyncSelect = ({
             }}
             onBlur={() => {
               setIsFocus(false);
-              setData([]);
+              if (searchWithBack) {
+                setData([]);
+              } else {
+                if (async && nextPage !== 1) {
+                  setNextPage(1);
+                  setCallFunc(true);
+                }
+              }
             }}
             onChange={(item) => {
               setSelectedValue(item.value);
               handleSelectValue(item.id);
               setIsFocus(false);
+            }}
+            renderRightIcon={(item) => {
+              return (
+                <>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    {!notValue &&
+                      selectedValue &&
+                      selectedValue !== undefined &&
+                      allowClearNotForm && (
+                        <Text
+                          onPress={() => {
+                            setSelectedValue(undefined);
+                            handleSelectValue(undefined);
+                            setIsFocus(false);
+                          }}
+                          style={{ marginRight: 6 }}
+                        >
+                          <FontAwesome name="close" size={14} color="black" />
+                        </Text>
+                      )}
+                    <Text
+                      onPress={() => {
+                        console.log("clickdown");
+                      }}
+                      style={{ marginRight: 10 }}
+                    >
+                      <Entypo
+                        name="chevron-small-down"
+                        size={20}
+                        color="black"
+                      />
+                    </Text>
+                  </View>
+                </>
+              );
             }}
             onChangeText={(keyword) => {
               if (searchWithBack || async) {

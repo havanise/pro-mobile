@@ -607,12 +607,6 @@ const Products = (props) => {
               </Text>
               {item?.prices?.length > 0 ? (
                 <ProTooltip
-                  // containerStyle={{
-                  //   position: "absolute",
-                  //   zIndex: 1000,
-                  //   width: 145,
-                  //   height: "auto",
-                  // }}
                   popover={
                     <View>
                       {item.prices?.map((price) => (

@@ -269,6 +269,9 @@ const Contacts = ({
     }
   }, [fromOperation]);
   useEffect(() => {
+    console.log(getValues("category_ul"));
+  }, [watch("category_ul")]);
+  useEffect(() => {
     setValue("priceType", 0);
   }, []);
 
@@ -379,9 +382,7 @@ const Contacts = ({
             />
             <ProAsyncSelect
               label="Kateqoriya"
-              defaultValue={
-                fromOperation ? (fromOperation === "sale" ? [1] : [4]) : []
-              }
+              defaultValue={getValues("category_ul")}
               isMulti
               data={Object.values(contactCategories)}
               setData={() => {}}
@@ -391,7 +392,6 @@ const Contacts = ({
               required
               name="category_ul"
               handleSelectValue={({ list }) => {
-                console.log(list, 'list')
                 handleChange(list);
               }}
             />

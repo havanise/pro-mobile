@@ -505,13 +505,6 @@ export const RECEIVABLES_TABLE_SETTING_DATA = [
     fixed: true,
   },
   {
-    name: "Ödəniş tarixi",
-    dataIndex: "firstOpenCreditDate",
-    standart: true,
-    visible: true,
-    fixed: true,
-  },
-  {
     name: "Toplam Borclar",
     dataIndex: "invoiceDebtAmount",
     standart: true,
@@ -733,13 +726,6 @@ export const RECEIVABLES_TABLE_SETTING_DATA = [
     dataIndex: "swift",
     standart: false,
     visible: false,
-    fixed: false,
-  },
-  {
-    name: "Seç",
-    dataIndex: "actions",
-    standart: true,
-    visible: true,
     fixed: false,
   },
 ];
