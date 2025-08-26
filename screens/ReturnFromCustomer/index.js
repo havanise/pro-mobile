@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   Pressable,
+  Platform
 } from "react-native";
 import Toast from "react-native-toast-message";
 import moment from "moment";
@@ -91,6 +92,7 @@ import AddFromCatalog from "../../components/AddFromCatalog";
 import InvoiceModalWithSN from "../../components/InvoiceModalWithSN";
 import InvoiceModalWithoutSN from "../../components/InvoiceModalWithoutSN";
 import Contacts from "../Contacts";
+import { changeNumber } from "../../utils/constants";
 
 const math = require("exact-math");
 const BigNumber = require("bignumber.js");
@@ -871,14 +873,16 @@ const SecondRoute = (props) => {
   };
 
   const handleInvoicePriceChange = (productId, newPrice, limit = 10000000) => {
+
+    let checkPrice = Platform.OS === 'ios' ? changeNumber(newPrice) : newPrice
     if (
-      re_amount.test(newPrice) &&
-      newPrice <= limit &&
-      Number(newPrice || 0) <= 10000000
+      re_amount.test(checkPrice) &&
+      checkPrice <= limit &&
+      Number(checkPrice || 0) <= 10000000
     ) {
-      setProductPrice(productId, newPrice);
+      setProductPrice(productId, checkPrice);
     }
-    if (newPrice === "") {
+    if (checkPrice === "") {
       setProductPrice(productId, undefined);
     }
   };
@@ -988,11 +992,13 @@ const SecondRoute = (props) => {
     transfer = false,
     totalPrice
   ) => {
+
+    let checkQuantity = Platform.OS === 'ios' ? changeNumber(newQuantity) : newQuantity
     const limit = Number(quantity) >= 0 ? Number(quantity) : 10000000;
-    if (re_amount.test(newQuantity) && (newQuantity <= limit || draftMode)) {
-      setProductQuantity(productId, newQuantity, transfer, totalPrice);
+    if (re_amount.test(checkQuantity) && (checkQuantity <= limit || draftMode)) {
+      setProductQuantity(productId, checkQuantity, transfer, totalPrice);
     }
-    if (newQuantity === "") {
+    if (checkQuantity === "") {
       setProductQuantity(productId, undefined, transfer);
     }
   };
@@ -1055,10 +1061,12 @@ const SecondRoute = (props) => {
   };
 
   const handleTotalPriceChange = (productId, newPrice, _, limit = 10000000) => {
-    if (re_amount.test(newPrice) && newPrice <= limit) {
-      setProductTotalPrice(productId, newPrice);
+
+    let checkPrice = Platform.OS === 'ios' ? changeNumber(newPrice) : newPrice
+    if (re_amount.test(checkPrice) && checkPrice <= limit) {
+      setProductTotalPrice(productId, checkPrice);
     }
-    if (newPrice === "") {
+    if (checkPrice === "") {
       setProductTotalPrice(productId, undefined);
     }
   };
@@ -1083,10 +1091,12 @@ const SecondRoute = (props) => {
   };
 
   const handleTaxAmountPercentage = (productId, newPercentage) => {
-    if (re_amount.test(newPercentage) && Number(newPercentage ?? 0) <= 100) {
-      setTaxAmountPercentage(productId, newPercentage);
+
+    let checkPercentage = Platform.OS === 'ios' ? changeNumber(newPercentage) : newPercentage
+    if (re_amount.test(checkPercentage) && Number(checkPercentage ?? 0) <= 100) {
+      setTaxAmountPercentage(productId, checkPercentage);
     }
-    if (newPercentage === "") {
+    if (checkPercentage === "") {
       setTaxAmountPercentage(productId, undefined);
     }
   };
@@ -1177,13 +1187,15 @@ const SecondRoute = (props) => {
   };
 
   const handleTaxAmount = (productId, newPercentage) => {
+    
+    let checkPercentage = Platform.OS === 'ios' ? changeNumber(newPercentage) : newPercentage
     if (
-      re_amount.test(newPercentage) &&
-      Number(newPercentage ?? 0) <= 1000000
+      re_amount.test(checkPercentage) &&
+      Number(checkPercentage ?? 0) <= 1000000
     ) {
-      setTaxAmount(productId, newPercentage);
+      setTaxAmount(productId, checkPercentage);
     }
-    if (newPercentage === "") {
+    if (checkPercentage === "") {
       setTaxAmount(productId, undefined);
     }
   };
@@ -1907,13 +1919,15 @@ const SecondRoute = (props) => {
     limit = 100,
     skipRegex = false
   ) => {
+
+    let checkPercentage = Platform.OS === 'ios' ? changeNumber(newPercentage) : newPercentage
     if (
-      (re_amount.test(newPercentage) || skipRegex) &&
-      newPercentage <= limit
+      (re_amount.test(checkPercentage) || skipRegex) &&
+      checkPercentage <= limit
     ) {
-      setProductDiscountPercentage(newPercentage, isManual);
+      setProductDiscountPercentage(checkPercentage, isManual);
     }
-    if (newPercentage === "") {
+    if (checkPercentage === "") {
       setProductDiscountPercentage(undefined, isManual);
     }
   };

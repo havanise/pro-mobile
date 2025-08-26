@@ -4,7 +4,8 @@ import ProAsyncSelect from "../ProAsyncSelect";
 
 import { AntDesign } from "@expo/vector-icons";
 import ProButton from "../ProButton";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
+import { changeNumber } from "../../utils/constants";
 
 const re = /^[0-9]{1,9}\.?[0-9]{0,2}$/;
 const ExpenseRow = (props) => {
@@ -152,7 +153,11 @@ const ExpenseRow = (props) => {
           keyboardType="numeric"
           disabled={disabled || fromInvoice}
           handleChange={(val) => {
-            handleExpenseChange(val, index);
+            let newVal = Platform.OS === 'ios'? changeNumber(val) : val
+            handleExpenseChange(newVal, index);
+            if (Platform.OS === 'ios') {
+              setValue(`expenses[${index}].amount`, newVal);
+            }
           }}
           suffix={currencyCode}
         />

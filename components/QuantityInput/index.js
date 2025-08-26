@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { AntDesign } from "@expo/vector-icons";
 import ProTooltip from "../ProTooltip";
-import { Text, TextInput, View } from "react-native";
+import { Platform, TextInput, View } from "react-native";
 import ProInput from "../ProInput";
 import ProButton from "../ProButton";
 
 import math from "exact-math";
 import { re_amount } from "../../utils";
+import { changeNumber } from "../../utils/constants";
 
 const QuantityInput = (props) => {
   const {
@@ -38,14 +39,15 @@ const QuantityInput = (props) => {
   };
 
   const handleChange = (newInvoiceQuantity) => {
+    let checkQuantity = Platform.OS === 'ios' ? changeNumber(newInvoiceQuantity) : newInvoiceQuantity
     if (
-      re_amount.test(newInvoiceQuantity) &&
-      Number(newInvoiceQuantity) <=
+      re_amount.test(checkQuantity) &&
+      Number(checkQuantity) <=
         Number(hasMultiMeasurement ? convertedQuantity : quantity)
     ) {
-      return onChange(newInvoiceQuantity, product);
+      return onChange(checkQuantity, product);
     }
-    if (newInvoiceQuantity === "") {
+    if (checkQuantity === "") {
       onChange(null, product);
     }
   };

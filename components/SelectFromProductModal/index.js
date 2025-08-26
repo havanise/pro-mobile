@@ -32,12 +32,14 @@ import {
   ScrollView,
   Pressable,
   Modal,
+  Platform
 } from "react-native";
 import InvoiceModalWithSN from "../InvoiceModalWithSN";
 import { useFilterHandle } from "../../hooks";
 import moment from "moment";
 import { ProductSelectSetting_Table_Data } from "../../utils/table-config/salesBuyModule";
 import { TenantContext } from "../../context";
+import { changeNumber } from "../../utils/constants";
 
 const math = require("exact-math");
 
@@ -413,16 +415,18 @@ const SelectFromProductModal = (props) => {
     if (!row.isWithoutSerialNumber || e < 0) {
       return;
     } else {
+
+    let checkQuantity = Platform.OS === 'ios' ? changeNumber(e) : e
       const limit =
         Number(row?.quantity) >= 0 ? Number(row?.quantity) : 10000000;
-      if (re_amount.test(e) && e <= limit) {
+      if (re_amount.test(checkQuantity) && checkQuantity <= limit) {
         const isProductSelected = selectedInvoiceProductsFromModal.some(
           (product) => product.id === row.id
         );
         const updatedSelectedProducts = selectedInvoiceProductsFromModal.map(
           (product) => {
-            if (product.id === row.id && row.quantity >= e) {
-              if (e === "") {
+            if (product.id === row.id && row.quantity >= checkQuantity) {
+              if (checkQuantity === "") {
                 return {
                   ...product,
                   invoiceQuantity: "",
@@ -430,7 +434,7 @@ const SelectFromProductModal = (props) => {
               } else {
                 return {
                   ...product,
-                  invoiceQuantity: e,
+                  invoiceQuantity: checkQuantity,
                 };
               }
             }
@@ -439,12 +443,12 @@ const SelectFromProductModal = (props) => {
         );
         if (
           !isProductSelected &&
-          parseFloat(row.quantity ?? 0) >= parseFloat(e ?? 0)
+          parseFloat(row.quantity ?? 0) >= parseFloat(checkQuantity ?? 0)
         ) {
           updatedSelectedProducts.push({
             ...row,
             id: row.id,
-            invoiceQuantity: e,
+            invoiceQuantity: checkQuantity,
           });
         }
         setSelectedInvoiceProductFromModal(

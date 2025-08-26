@@ -14,6 +14,7 @@ import { useApi } from "../../hooks";
 import PaymentType from "../PaymentType";
 import ExpenseRow from "../ExpenseRow";
 import ProFormInput from "../ProFormInput";
+import { changeNumber } from "../../utils/constants";
 
 const PaymentRow = ({
   control,
@@ -502,9 +503,9 @@ const PaymentRow = ({
                   width="80%"
                   keyboardType="numeric"
                   disabled={disabled || fromInvoice}
-                  // handleChange={(val) => {
-                  //   handleExpenseChange(val);
-                  // }}
+                  handleChange={(val) => {
+                    setValue("amount", changeNumber(val));
+                  }}
                 />
               </View>
             </View>

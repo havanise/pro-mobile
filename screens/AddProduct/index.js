@@ -6,6 +6,7 @@ import {
   useWindowDimensions,
   ScrollView,
   StyleSheet,
+  Platform
 } from "react-native";
 import Toast from "react-native-toast-message";
 import {
@@ -51,6 +52,7 @@ import {
   getPurchaseProducts,
 } from "../../api/sale";
 import { useApi } from "../../hooks";
+import { changeNumber } from "../../utils/constants";
 
 const math = require("exact-math");
 const BigNumber = require("bignumber.js");
@@ -401,6 +403,9 @@ const FirstRoute = (props) => {
                 control={control}
                 width="49%"
                 keyboardType="numeric"
+                handleChange={(val) => {
+                  setValue("price", Platform.OS === 'ios'? changeNumber(`${val}`) : val);
+                }}
               />
             </View>
             <ProAsyncSelect
@@ -675,10 +680,12 @@ const SecondRoute = (props) => {
     totalPrice
   ) => {
     const limit = Number(quantity) >= 0 ? Number(quantity) : 10000000;
-    if (re_amount.test(newQuantity) && (newQuantity <= limit || draftMode)) {
-      setProductQuantity(productId, newQuantity, transfer, totalPrice);
+
+    let checkQuantity = Platform.OS === 'ios' ? changeNumber(newQuantity) : newQuantity
+    if (re_amount.test(checkQuantity) && (checkQuantity <= limit || draftMode)) {
+      setProductQuantity(productId, checkQuantity, transfer, totalPrice);
     }
-    if (newQuantity === "") {
+    if (checkQuantity === "") {
       setProductQuantity(productId, undefined, transfer);
     }
   };
