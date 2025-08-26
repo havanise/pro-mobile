@@ -3,7 +3,7 @@ import Toast from "react-native-toast-message";
 import { storage, filterQueryResolver, clearToken, getData } from "../utils";
 
 let requestURL = "";
-let baseURL = "https://devcore.prospectsmb.com/v1";
+let baseURL = "https://core.prospect.az/v1";
 // if (process.env.NODE_ENV === 'development') {
 //     baseURL = 'https://devcore.prospectsmb.com/v1';
 // } else {

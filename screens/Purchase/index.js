@@ -1851,8 +1851,8 @@ const SecondRoute = (props) => {
               <TextInput
                 value={
                   totalPricePerProduct?.toString()?.split('.')[1]?.length > 2
-                      ? roundTo(parseFloat(totalPricePerProduct) || 0, 2)
-                      : totalPricePerProduct ?? handleProductTotalPrice(invoiceQuantity, invoicePrice)
+                      ? `${roundTo(parseFloat(totalPricePerProduct) || 0, 2)}`
+                      : `${totalPricePerProduct ?? handleProductTotalPrice(invoiceQuantity, invoicePrice)}`
                 }
                 keyboardType="numeric"
                 onChangeText={(event) => {
@@ -2037,6 +2037,7 @@ const SecondRoute = (props) => {
     addition = null,
     isManual = false
   ) => {
+    let checkPercentage = Platform.OS === 'ios' ? changeNumber(value) : value
     const totalPrice = Number(
       selectedProducts?.reduce(
         (totalPrice, { totalPricePerProduct }) =>
@@ -2045,53 +2046,53 @@ const SecondRoute = (props) => {
       ) || 0
     );
     const re = /^[0-9]{1,9}\.?[0-9]{0,2}$/;
-    if (value === "") {
+    if (checkPercentage === "") {
       handleDiscountPercentage(0);
       setDiscount({
         percentage: null,
         amount: null,
       });
     }
-    if (Number(value) === 100) {
+    if (Number(checkPercentage) === 100) {
       setVat({
         percentage: undefined,
         amount: undefined,
       });
       setUseVat(false);
     }
-    if (type === "percentage" && re_percent.test(value) && value <= 100) {
+    if (type === "percentage" && re_percent.test(checkPercentage) && checkPercentage <= 100) {
       const AMOUNT = roundTo(
-        math.div(math.mul(Number(value), Number(totalPrice || 0)), 100),
+        math.div(math.mul(Number(checkPercentage), Number(totalPrice || 0)), 100),
         2
       );
       setDiscount({
-        percentage: `${value}` || undefined,
+        percentage: `${checkPercentage}` || undefined,
         amount: `${AMOUNT}` || undefined,
       });
     }
     if (
       type === "amount" &&
-      re.test(value) &&
-      Number(value) <= Number(totalPrice)
+      re.test(checkPercentage) &&
+      Number(checkPercentage) <= Number(totalPrice)
     ) {
       const PERCENTAGE = math.div(
-        math.mul(Number(value || 0), 100),
+        math.mul(Number(checkPercentage || 0), 100),
         Number(totalPrice || 1)
       );
 
       handleDiscountPercentage(PERCENTAGE ?? null, false, 100, true);
       setDiscount({
         percentage: `${roundTo(PERCENTAGE, 4)}` || undefined,
-        amount: `${value}` || undefined,
+        amount: `${checkPercentage}` || undefined,
       });
     }
-    if (type === "percentage" && value <= 100) {
+    if (type === "percentage" && checkPercentage <= 100) {
       if (!addition) {
-        handleDiscountPercentage(value ?? "", isManual);
+        handleDiscountPercentage(checkPercentage ?? "", isManual);
         return;
       }
 
-      handleDiscountPercentage(value ?? "");
+      handleDiscountPercentage(checkPercentage ?? "");
     }
   };
 

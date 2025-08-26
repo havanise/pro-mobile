@@ -52,13 +52,15 @@ const ProDateRange = ({ onChange, dates }) => {
       <View style={styles.inputRow}>
         <TouchableOpacity
           style={styles.inputBox}
-          onPress={() => openPicker("start")}
+          onPress={() => {
+            openPicker("start")}}
         >
           <TextInput
             style={styles.input}
             placeholder="Başlanğıc"
             value={formatDate(startDate)}
             editable={false}
+            pointerEvents="none"
           />
         </TouchableOpacity>
 
@@ -71,6 +73,7 @@ const ProDateRange = ({ onChange, dates }) => {
             placeholder="Son"
             value={formatDate(endDate)}
             editable={false}
+            pointerEvents="none"
           />
         </TouchableOpacity>
       </View>
@@ -147,6 +150,7 @@ const styles = StyleSheet.create({
   },
   inputBox: {
     flex: 1,
+    zIndex: 9999
   },
   input: {
     borderWidth: 1,

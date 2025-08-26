@@ -738,9 +738,6 @@ const AddFromCatalog = ({
               const productInfo = productData?.find(
                 (productD) => productD.id == product?.productId
               );
-              console.log(productData)
-              console.log(product)
-              console.log(productInfo)
               const invoicePriceValue = autoFillPrice ? defaultNumberFormat(invoice[product?.productId]) : null ?? null;
               const invQuantity = product.invoiceQuantity
                 ? product.invoiceQuantity

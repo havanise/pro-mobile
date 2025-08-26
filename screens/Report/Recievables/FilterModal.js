@@ -83,6 +83,11 @@ const FilterModal = ({
   const [catalogs, setCatalogs] = useState([]);
   const [childCatalogs, setChildCatalogs] = useState([]);
 
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [time, setTime] = useState(new Date());
+  const [show, setShow] = useState(false);
+  const [mode, setMode] = useState("date");
+
   const [filters, setFilters] = useState({
     currencyId: defaultCurrency,
     contacts: null,
@@ -142,6 +147,7 @@ const FilterModal = ({
 
     if (filters.dateOfTransactionFrom && filters.dateOfTransactionFrom !== "")
       count++;
+    if (filters.datetime) count++;
     if (filters.dateOfTransactionTo && filters.dateOfTransactionTo !== "")
       count++;
     if (filters.daysFrom && filters.daysFrom !== "") count++;
@@ -235,7 +241,6 @@ const FilterModal = ({
   const { isLoading: isLoadCounterparties, run: runCounterparties } = useApi({
     deferFn: getCounterparties,
     onResolve: (data) => {
-      console.log("okkkk");
       setCounterparties(
         data.map((item) => ({ ...item, label: item.name, value: item.id }))
       );
@@ -327,9 +332,6 @@ const FilterModal = ({
   });
 
   useEffect(() => {
-    console.log(
-      dates.startDate === null ? undefined : formatToBakuTime(dates.startDate)
-    );
     setFilters((prevFilters) => ({
       ...prevFilters,
       dateOfTransactionFrom:
@@ -340,6 +342,17 @@ const FilterModal = ({
         dates.endDate === null ? undefined : formatToBakuTime(dates.endDate),
     }));
   }, [dates]);
+
+  useEffect(() => {
+    setFilters((prevFilters) => ({
+      ...prevFilters,
+      datetime:
+        moment(selectedDate).format("DD-MM-YYYY") +
+                        " " +
+                        moment(time).format("HH:mm:ss")
+    }));
+  }, [selectedDate, time]);
+  
   useEffect(() => {
     if (defaultCurrency)
       setFilters((prevFilters) => ({
@@ -401,10 +414,7 @@ const FilterModal = ({
     });
   }, []);
 
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [time, setTime] = useState(new Date());
-  const [show, setShow] = useState(false);
-  const [mode, setMode] = useState("date");
+
 
   const showMode = (currentMode) => {
     setShow(true);
@@ -1223,7 +1233,7 @@ const styles = StyleSheet.create({
   },
   modalView: {
     width: "100%",
-    height: "100%",
+    height: "90%",
     padding: 30,
     backgroundColor: "white",
     borderRadius: 5,

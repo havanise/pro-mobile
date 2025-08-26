@@ -72,7 +72,6 @@ const ExpenseRow = (props) => {
   }, [
     getValues(`expenses[${index}].catalog`),
     expenseCatalogs?.root,
-    subcatalogs,
   ]);
 
   return (

@@ -849,6 +849,7 @@ const FinanceTransfer = ({ navigation, route }) => {
 
   useEffect(() => {
     if (checked) {
+      console.log('jsdhfg')
       setTypeOfPayment(transferData.from.type);
       setValue("paymentAccount", getValues("from"));
     }
@@ -1040,6 +1041,7 @@ const FinanceTransfer = ({ navigation, route }) => {
               control={control}
               name="from"
               handleSelectValue={(id) => {
+                console.log('oksjdj')
                 handleAccountChange("from", id);
                 handleUnit(id);
               }}

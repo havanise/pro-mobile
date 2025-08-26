@@ -107,11 +107,23 @@ const ProAsyncSelect = ({
           })
         );
 
+        const defValIds = new Set(
+          defValue.map((d) => {
+            return `${d.id}${
+              d.unitOfMeasurementId &&
+              !d.id?.toString().includes(d.unitOfMeasurementId.toString())
+                ? d.unitOfMeasurementId
+                : ""
+            }`;
+          })
+        );
+
         const merged = [...data.filter((d) => !ids.has(`${d.id}`)), ...resp];
+        console.log(merged, defValue)
         if (callFunc) {
           setData([
             ...defValue,
-            ...resp.map((item) => ({
+            ...resp.filter(it=> !defValIds.has(`${it.id}`)).map((item) => ({
               ...item,
               label: withProductCode
                 ? item.productCode !== null
@@ -184,14 +196,6 @@ const ProAsyncSelect = ({
       });
     }
   };
-
-  console.log(
-    notValue
-      ? undefined
-      : selectedValueFromParent
-      ? selectedValueFromParent
-      : selectedValue
-  );
 
   return (
     <View

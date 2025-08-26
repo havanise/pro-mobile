@@ -502,8 +502,8 @@ function Recievables(props) {
         (arr[columnClone.indexOf("type")] = {
           value:
             item.type === "Legal entity"
-              ? i18n.t("Hüquqi şəxs")
-              : i18n.t("Fiziki şəxs"),
+              ? "Hüquqi şəxs"
+              : "Fiziki şəxs",
         });
       columnClone.includes("categoryIds") &&
         (arr[columnClone.indexOf("categoryIds")] = {
@@ -545,7 +545,7 @@ function Recievables(props) {
         });
       columnClone.includes("priceType") &&
         (arr[columnClone.indexOf("priceType")] = {
-          value: item.priceType || i18n.t("Satış"),
+          value: item.priceType || "Satış",
         });
       columnClone.includes("description") &&
         (arr[columnClone.indexOf("description")] = {
