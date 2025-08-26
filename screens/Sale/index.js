@@ -607,12 +607,13 @@ const FirstRoute = (props) => {
               name="currency"
             />
             <View style={{ position: "relative" }}>
-              <View style={{ position: "absolute", zIndex: 1, right: 10, top: 10 }}>
+              <View
+                style={{ position: "absolute", zIndex: 1, right: 10, top: 10 }}
+              >
                 <ProButton
                   label={<AntDesign name="pluscircle" size={14} />}
                   type="transparent"
                   onClick={() => {
-                    console.log('okkk twat')
                     setModalVisible(true);
                   }}
                   padding={"0px"}
@@ -1124,12 +1125,12 @@ const SecondRoute = (props) => {
     productId,
     newQuantity,
     quantity,
-    draftMode = false,
     transfer = false,
     totalPrice
   ) => {
     const limit = Number(quantity) >= 0 ? Number(quantity) : 10000000;
-    if (re_amount.test(newQuantity) && (newQuantity <= limit || draftMode)) {
+
+    if (re_amount.test(newQuantity) && newQuantity <= limit) {
       setProductQuantity(productId, newQuantity, transfer, totalPrice);
     }
     if (newQuantity === "") {
@@ -1750,7 +1751,11 @@ const SecondRoute = (props) => {
             name,
             <View>
               <TextInput
-                value={invoicePrice ? `${invoicePrice}` : undefined}
+                value={
+                  invoicePrice && invoicePrice !== null
+                    ? `${invoicePrice}`
+                    : undefined
+                }
                 keyboardType="numeric"
                 onChangeText={(event) => {
                   handleInvoicePriceChange(
@@ -1782,13 +1787,13 @@ const SecondRoute = (props) => {
             </View>,
             <View>
               <TextInput
-                value={invoiceQuantity ? `${invoiceQuantity}` : undefined}
+                value={`${invoiceQuantity || ""}` || ""}
                 keyboardType="numeric"
                 onChangeText={(event) => {
                   handleQuantityChange(
                     productUniqueId ?? id,
                     event,
-                    1000000000000000
+                    catalog.isServiceType ? 10000000000000 : quantity
                   );
                 }}
                 editable={catalog?.isWithoutSerialNumber}
@@ -1917,7 +1922,7 @@ const SecondRoute = (props) => {
                     ? `${defaultNumberFormat(
                         math.mul(
                           Number(invoiceQuantity) || 0,
-                          Number(invoicePrice) || 0
+                          Number(invoicePrice || 0) || 0
                         )
                       )}`
                     : undefined
@@ -2127,7 +2132,6 @@ const SecondRoute = (props) => {
         ),
       };
     });
-
     setSelectedProducts(newSelectedProducts);
   };
 
@@ -2256,8 +2260,8 @@ const SecondRoute = (props) => {
                 math.mul(
                   parseFloat(vatSettingState?.percentage ?? 0) ?? 0,
                   parseFloat(
-                    selectedProduct?.discountedPrice ??
-                      selectedProduct?.invoicePrice ??
+                    selectedProduct?.discountedPrice ||
+                      selectedProduct?.invoicePrice ||
                       0
                   )
                 ) || 0,
@@ -2389,6 +2393,7 @@ const SecondRoute = (props) => {
       setPayments([]);
       setVatSelection(false);
     }
+    console.log(1034);
   };
 
   const handleSearch = useMemo(
@@ -2669,11 +2674,14 @@ const SecondRoute = (props) => {
           return {
             ...product,
             prices: priceTypes?.[product.id],
-            invoicePrice: autoFillPrice && productPricesTypeObj?.invoicePrice
-              ? Number(productPricesTypeObj?.invoicePrice)
-              : null,
+            invoicePrice:
+              autoFillPrice && productPricesTypeObj?.invoicePrice
+                ? Number(productPricesTypeObj?.invoicePrice)
+                : null,
             autoDiscountedPrice: productPricesTypeObj?.discountedPrice,
-            mainInvoicePrice: autoFillPrice ? productPricesTypeObj?.invoicePrice : null,
+            mainInvoicePrice: autoFillPrice
+              ? productPricesTypeObj?.invoicePrice
+              : null,
             invoiceQuantity: product?.catalog?.isWithoutSerialNumber
               ? 1
               : product?.quantity === 1
@@ -2705,11 +2713,14 @@ const SecondRoute = (props) => {
         return {
           ...product,
           prices: priceTypes?.[product.id],
-          invoicePrice: autoFillPrice && productPricesTypeObj?.invoicePrice
-            ? Number(productPricesTypeObj?.invoicePrice)
-            : null,
+          invoicePrice:
+            autoFillPrice && productPricesTypeObj?.invoicePrice
+              ? Number(productPricesTypeObj?.invoicePrice)
+              : null,
           autoDiscountedPrice: productPricesTypeObj?.discountedPrice,
-          mainInvoicePrice: autoFillPrice ? productPricesTypeObj?.invoicePrice : null,
+          mainInvoicePrice: autoFillPrice
+            ? productPricesTypeObj?.invoicePrice
+            : null,
           invoiceQuantity: product?.catalog?.isWithoutSerialNumber
             ? 1
             : product?.quantity === 1

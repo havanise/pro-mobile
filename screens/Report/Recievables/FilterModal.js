@@ -12,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import moment from "moment";
 import {
   ProAsyncSelect,
@@ -684,6 +685,8 @@ const FilterModal = ({
                   isMulti
                   defaultValue={filters.contracts}
                   async
+                  valueName="contract_no"
+                  valueNameTwo="serialNumber"
                   data={
                     filterSelectedContracts.length > 0
                       ? [

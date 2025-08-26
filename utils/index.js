@@ -21,6 +21,7 @@ export {
   roundTo,
   roundToUp,
   customRoundWithBigNumber,
+  formatNumberForTable,
 } from "./formatNumberToLocale";
 export { generateProductMultiMesaurements } from "./generateProductMultiMesaurements";
 export {

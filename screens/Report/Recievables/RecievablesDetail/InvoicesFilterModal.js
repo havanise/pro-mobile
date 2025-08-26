@@ -57,6 +57,12 @@ const InvoicesFilterModal = ({
   useEffect(() => {
     runInvoice({
       filter: {
+        currencyId: filter.currencyId,
+        contacts: filter.contacts,
+        isDeleted: 0,
+        limit: 20,
+        page: 1,
+        invoiceTypes: [2, 4, 13],
         excludeZeroAmount: 1,
         excludeEmptyPaymentStatus: 1,
         includeCreditData: 1,
@@ -108,6 +114,10 @@ const InvoicesFilterModal = ({
                     daysFromLastPaymentDateMin: filters.priceChecked
                       ? 1
                       : undefined,
+                    currencyId: filter.currencyId,
+                    contacts: filter.contacts,
+                    isDeleted: 0,
+                    invoiceTypes: [2, 4, 13],
                   }}
                   notForm
                   handleSelectValue={({ list }) => {

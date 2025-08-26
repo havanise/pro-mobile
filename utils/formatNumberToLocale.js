@@ -1,4 +1,5 @@
-import BigNumber from 'bignumber.js';
+import BigNumber from "bignumber.js";
+import { Text, View } from "react-native";
 const commaNumber = require("comma-number");
 const math = require("exact-math");
 
@@ -76,3 +77,33 @@ export const getPercentage = (amount, percent) =>
 export function toFixedNumber(value, float = 2) {
   return value === null || !value ? 0 : Number(Number(value).toFixed(float));
 }
+
+export const formatNumberForTable = (
+  value,
+  currencyCode = undefined,
+  hideComma = true,
+  strictRow = true,
+  displayBlock = false
+) => {
+  const formattedValue = formatNumberToLocale(defaultNumberFormat(value || 0));
+  const [integerPart, decimalPart] = formattedValue.split(".");
+
+  return (
+    <View
+      style={{
+        display: displayBlock ? "inline-block" : "inherit",
+        flexDirection: strictRow ? "row" : "column",
+        alignItems: "center",
+      }}
+    >
+      <Text style={{ whiteSpace: "nowrap" }}>
+        {" " + integerPart.replace(/,/g, " ")}
+      </Text>
+      <Text>,{decimalPart}</Text>
+      {currencyCode && (
+        <Text style={{ marginLeft: "0.5em" }}>{currencyCode}</Text>
+      )}
+      {!hideComma && <Text style={{ marginLeft: 8, marginRight: 8 }}>/</Text>}
+    </View>
+  );
+};

@@ -10,7 +10,12 @@ import {
   ProTooltip,
   SettingModal,
 } from "../../components";
-import { fetchProducts, fetchProductCount, fetchSalesPrice, createSettings } from "../../api";
+import {
+  fetchProducts,
+  fetchProductCount,
+  fetchSalesPrice,
+  createSettings,
+} from "../../api";
 import { AntDesign } from "@expo/vector-icons";
 import {
   re_amount,
@@ -26,7 +31,7 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Modal
+  Modal,
 } from "react-native";
 import InvoiceModalWithSN from "../InvoiceModalWithSN";
 import { useFilterHandle } from "../../hooks";
@@ -859,7 +864,9 @@ const SelectFromProductModal = (props) => {
                   discountAmountForBack: defaultNumberFormat(
                     discountAmount || 0
                   ),
-                  discountedPrice: defaultNumberFormat(endPricePerUnit || 0),
+                  discountedPrice: defaultNumberFormat(
+                    endPricePerUnit || pricePerUnit || 0
+                  ),
                   totalPricePerProduct: math.mul(
                     Number(invoicePrice || pricePerUnit || 0),
                     Number(invoiceQuantity || 1)
@@ -1086,7 +1093,9 @@ const SelectFromProductModal = (props) => {
                 discountPercentage: Number(discountPercentage || 0).toFixed(4),
                 discountAmount: defaultNumberFormat(discountAmount || 0),
                 discountAmountForBack: defaultNumberFormat(discountAmount || 0),
-                discountedPrice: defaultNumberFormat(endPricePerUnit || 0),
+                discountedPrice: defaultNumberFormat(
+                  endPricePerUnit || pricePerUnit || 0
+                ),
                 totalPricePerProduct: math.mul(
                   Number(
                     productPricesTypeObj?.invoicePrice

@@ -9,7 +9,7 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  Platform
+  Platform,
 } from "react-native";
 import { Table, Row } from "react-native-reanimated-table";
 import { filter as filterLodash } from "lodash";
@@ -35,6 +35,7 @@ import XLSX from "xlsx";
 import { createSettings, fetchProductCount, fetchProducts } from "../../../api";
 import {
   defaultNumberFormat,
+  formatNumberForTable,
   formatNumberToLocale,
   roundTo,
 } from "../../../utils";
@@ -236,186 +237,175 @@ const Products = (props) => {
   };
 
   const exportDataToExcel = async (exData) => {
-    
     const columnClone = [...visibleColumns];
-    const data = (exData === false ? [{}] : exData).map(
-      (item, index) => {
-        const arr = [];
-        const currentMeasurement = item.unitOfMeasurements?.find(
-          (unit) => unit?.id === item.unitOfMeasurementID
-        );
-        const salesDraftQuantity =
+    const data = (exData === false ? [{}] : exData).map((item, index) => {
+      const arr = [];
+      const currentMeasurement = item.unitOfMeasurements?.find(
+        (unit) => unit?.id === item.unitOfMeasurementID
+      );
+      const salesDraftQuantity =
         item.unitOfMeasurements?.length === 1
           ? item.salesDraftQuantity
           : math.div(
               Number(item.salesDraftQuantity || 0),
               Number(currentMeasurement?.coefficientRelativeToMain || 1)
             );
-        const bronQuantity =
-          item.unitOfMeasurements?.length === 1
-            ? item.bronQuantity
-            : math.div(
-                Number(item.bronQuantity || 0),
-                Number(currentMeasurement?.coefficientRelativeToMain || 1)
-              );
-        columnClone.includes("isServiceType") &&
-          (arr[columnClone.indexOf("isServiceType")] = {
-            "Məhsul tipi": item.isServiceType ? "Xidmət" : "Məhsul"
-          });
-        columnClone.includes("isWithoutSerialNumber") &&
-          (arr[columnClone.indexOf("isWithoutSerialNumber")] = {
-            "Seriya nömrəsi":
-              item.isWithoutSerialNumber === false ? "Hə" : "Yox",
-          });
-        columnClone.includes("parentCatalogName") &&
-          (arr[columnClone.indexOf("parentCatalogName")] = {
-            Kataloq: item.parentCatalogName,
-          });
-        columnClone.includes("catalogName") &&
-          (arr[columnClone.indexOf("catalogName")] = {
-            "Alt Kataloq":
-              item.catalogName,
-          });
-        columnClone.includes("attachmentName") &&
-          (arr[columnClone.indexOf("attachmentName")] = {
-            Şəkil: <View style={{ display: "flex", flexDirection: "row" }}>
-            <Image
-              src={item.attachmentUrl}
-              style={{ width: 40, height: 40 }}
-            />
-          </View>,
-          });
-        columnClone.includes("name") &&
-          (arr[columnClone.indexOf("name")] = {
-            "Məhsul adı": item.name || "-",
-          });
-        columnClone.includes("bronQuantity") &&
-          (arr[columnClone.indexOf("bronQuantity")] = {
-            "Bron sayı": formatNumberToLocale(roundTo(Number(bronQuantity || 0), 4)),
-          });
-        columnClone.includes("consignmentQuantity") &&
-          (arr[columnClone.indexOf("consignmentQuantity")] = {
-            "Konsiqnasiya sayı": formatNumberToLocale(
-              roundTo(Number(item.consignmentQuantity || 0), 4)
-            ),
-          });
-        columnClone.includes("totalQuantity") &&
-          (arr[columnClone.indexOf("totalQuantity")] = {
-            "Cəmi say": formatNumberToLocale(
-              roundTo(Number(item.totalQuantity || 0), 4)
-            ) || "-",
-          });
-        columnClone.includes("idNumber") &&
-          (arr[columnClone.indexOf("idNumber")] = {
-            "ID nömrə": item.idNumber || "-",
-          });
-        columnClone.includes("manufacturerName") &&
-          (arr[columnClone.indexOf("manufacturerName")] = {
-            İstehsalçı: `${item.manufacturerName} ${item.manufacturerSurname && ""}`,
-          });
-        columnClone.includes("productCode") &&
-          (arr[columnClone.indexOf("productCode")] = {
-            "Məhsul kodu":
-              item.productCode === true || "-",
-          });
-        columnClone.includes("unitOfMeasurementName") &&
-          (arr[columnClone.indexOf("unitOfMeasurementName")] = {
-            "Ölçü vahidi": item.unitOfMeasurementName || "-",
-          });
-        columnClone.includes("roadTax") &&
-          (arr[columnClone.indexOf("roadTax")] = {
-            "Yol vergisi": item.roadTax
+      const bronQuantity =
+        item.unitOfMeasurements?.length === 1
+          ? item.bronQuantity
+          : math.div(
+              Number(item.bronQuantity || 0),
+              Number(currentMeasurement?.coefficientRelativeToMain || 1)
+            );
+      columnClone.includes("isServiceType") &&
+        (arr[columnClone.indexOf("isServiceType")] = {
+          "Məhsul tipi": item.isServiceType ? "Xidmət" : "Məhsul",
+        });
+      columnClone.includes("isWithoutSerialNumber") &&
+        (arr[columnClone.indexOf("isWithoutSerialNumber")] = {
+          "Seriya nömrəsi": item.isWithoutSerialNumber === false ? "Hə" : "Yox",
+        });
+      columnClone.includes("parentCatalogName") &&
+        (arr[columnClone.indexOf("parentCatalogName")] = {
+          Kataloq: item.parentCatalogName,
+        });
+      columnClone.includes("catalogName") &&
+        (arr[columnClone.indexOf("catalogName")] = {
+          "Alt Kataloq": item.catalogName,
+        });
+      columnClone.includes("attachmentName") &&
+        (arr[columnClone.indexOf("attachmentName")] = {
+          Şəkil: (
+            <View style={{ display: "flex", flexDirection: "row" }}>
+              <Image
+                src={item.attachmentUrl}
+                style={{ width: 40, height: 40 }}
+              />
+            </View>
+          ),
+        });
+      columnClone.includes("name") &&
+        (arr[columnClone.indexOf("name")] = {
+          "Məhsul adı": item.name || "-",
+        });
+      columnClone.includes("bronQuantity") &&
+        (arr[columnClone.indexOf("bronQuantity")] = {
+          "Bron sayı": formatNumberToLocale(
+            roundTo(Number(bronQuantity || 0), 4)
+          ),
+        });
+      columnClone.includes("consignmentQuantity") &&
+        (arr[columnClone.indexOf("consignmentQuantity")] = {
+          "Konsiqnasiya sayı": formatNumberToLocale(
+            roundTo(Number(item.consignmentQuantity || 0), 4)
+          ),
+        });
+      columnClone.includes("totalQuantity") &&
+        (arr[columnClone.indexOf("totalQuantity")] = {
+          "Cəmi say":
+            formatNumberToLocale(roundTo(Number(item.totalQuantity || 0), 4)) ||
+            "-",
+        });
+      columnClone.includes("idNumber") &&
+        (arr[columnClone.indexOf("idNumber")] = {
+          "ID nömrə": item.idNumber || "-",
+        });
+      columnClone.includes("manufacturerName") &&
+        (arr[columnClone.indexOf("manufacturerName")] = {
+          İstehsalçı: `${item.manufacturerName} ${
+            item.manufacturerSurname && ""
+          }`,
+        });
+      columnClone.includes("productCode") &&
+        (arr[columnClone.indexOf("productCode")] = {
+          "Məhsul kodu": item.productCode === true || "-",
+        });
+      columnClone.includes("unitOfMeasurementName") &&
+        (arr[columnClone.indexOf("unitOfMeasurementName")] = {
+          "Ölçü vahidi": item.unitOfMeasurementName || "-",
+        });
+      columnClone.includes("roadTax") &&
+        (arr[columnClone.indexOf("roadTax")] = {
+          "Yol vergisi": item.roadTax
             ? `${formatNumberToLocale(Number(item.roadTax) || 0)}
                   ${item.currencyCode || item.mainCurrencyCode}`
             : "-",
-          });
-        columnClone.includes("pricePerUnit") &&
-          (arr[columnClone.indexOf("pricePerUnit")] = {
-            Qiymət: item.pricePerUnit
-              ? `${formatNumberToLocale(Number(item.pricePerUnit) || 0)}
+        });
+      columnClone.includes("pricePerUnit") &&
+        (arr[columnClone.indexOf("pricePerUnit")] = {
+          Qiymət: item.pricePerUnit
+            ? `${formatNumberToLocale(Number(item.pricePerUnit) || 0)}
                     ${item.currencyCode || item.mainCurrencyCode}`
-              : "-",
-          });
+            : "-",
+        });
 
-        columnClone.includes("quantity") &&
-          (arr[columnClone.indexOf("quantity")] = {
-            "Anbar sayı": item.quantity || "-",
-          });
-        columnClone.includes("minPrice") &&
-          (arr[columnClone.indexOf("minPrice")] = {
-            "Maya dəyəri (min)": formatNumberToLocale(defaultNumberFormat(item.minPrice)) || "-",
-          });
-        columnClone.includes("maxPrice") &&
-          (arr[columnClone.indexOf("maxPrice")] = {
-            "Maya dəyəri (max)":
-              formatNumberToLocale(defaultNumberFormat(item.maxPrice)) || "-",
-          });
-        columnClone.includes("avgPrice") &&
-          (arr[columnClone.indexOf("avgPrice")] = {
-            "Maya dəyəri (orta)":
-              formatNumberToLocale(defaultNumberFormat(item.avgPrice)) || "-",
-          });
-        columnClone.includes("lastPrice") &&
-          (arr[
-            columnClone.indexOf("lastPrice")
-          ] = {
-            "Maya dəyəri (son)":
-              formatNumberToLocale(defaultNumberFormat(item.lastPrice)) || "-",
-          });
-        columnClone.includes("lifetime") &&
-          (arr[
-            columnClone.indexOf("lifetime")
-          ] = {
-            "İstismar müddəti":
-              formatNumberToLocale(defaultNumberFormat(item.lifetime)) || "-",
-          });
-        columnClone.includes(
-          "minimumStockQuantity"
-        ) &&
-          (arr[
-            columnClone.indexOf(
-              "minimumStockQuantity"
-            )
-          ] = {
-            "Minimal qalıq":
-              formatNumberToLocale(
-                defaultNumberFormat(item.minimumStockQuantity)
-              ) || "-",
-          });
-        columnClone.includes("isDeleted") &&
-          (arr[columnClone.indexOf("isDeleted")] = {
-            "Status":
-              item.isDeleted ? "Silinib" : "Aktiv",
-          });
-        columnClone.includes("labels") &&
-          (arr[columnClone.indexOf("labels")] = {
-            "Etiket": item.labels[0]?.name,
-          });
-        columnClone.includes("salesDraftQuantity") &&
-          (arr[columnClone.indexOf("salesDraftQuantity")] = {
-            Planlama:
-              formatNumberToLocale(
-                roundTo(Number(salesDraftQuantity || 0), 4)
-              ),
-          });
-        columnClone.includes("brandName") &&
-          (arr[columnClone.indexOf("brandName")] = {
-            Marka: item.brandName,
-          });
-        columnClone.includes("barcode") &&
-          (arr[columnClone.indexOf("barcode")] = {
-            Barkod: item.barcode,
-          });
-        columnClone.includes("description") &&
-          (arr[columnClone.indexOf("description")] = {
-            "Əlavə məlumat": item.descrption,
-          });
+      columnClone.includes("quantity") &&
+        (arr[columnClone.indexOf("quantity")] = {
+          "Anbar sayı": item.quantity || "-",
+        });
+      columnClone.includes("minPrice") &&
+        (arr[columnClone.indexOf("minPrice")] = {
+          "Maya dəyəri (min)":
+            formatNumberToLocale(defaultNumberFormat(item.minPrice)) || "-",
+        });
+      columnClone.includes("maxPrice") &&
+        (arr[columnClone.indexOf("maxPrice")] = {
+          "Maya dəyəri (max)":
+            formatNumberToLocale(defaultNumberFormat(item.maxPrice)) || "-",
+        });
+      columnClone.includes("avgPrice") &&
+        (arr[columnClone.indexOf("avgPrice")] = {
+          "Maya dəyəri (orta)":
+            formatNumberToLocale(defaultNumberFormat(item.avgPrice)) || "-",
+        });
+      columnClone.includes("lastPrice") &&
+        (arr[columnClone.indexOf("lastPrice")] = {
+          "Maya dəyəri (son)":
+            formatNumberToLocale(defaultNumberFormat(item.lastPrice)) || "-",
+        });
+      columnClone.includes("lifetime") &&
+        (arr[columnClone.indexOf("lifetime")] = {
+          "İstismar müddəti":
+            formatNumberToLocale(defaultNumberFormat(item.lifetime)) || "-",
+        });
+      columnClone.includes("minimumStockQuantity") &&
+        (arr[columnClone.indexOf("minimumStockQuantity")] = {
+          "Minimal qalıq":
+            formatNumberToLocale(
+              defaultNumberFormat(item.minimumStockQuantity)
+            ) || "-",
+        });
+      columnClone.includes("isDeleted") &&
+        (arr[columnClone.indexOf("isDeleted")] = {
+          Status: item.isDeleted ? "Silinib" : "Aktiv",
+        });
+      columnClone.includes("labels") &&
+        (arr[columnClone.indexOf("labels")] = {
+          Etiket: item.labels[0]?.name,
+        });
+      columnClone.includes("salesDraftQuantity") &&
+        (arr[columnClone.indexOf("salesDraftQuantity")] = {
+          Planlama: formatNumberToLocale(
+            roundTo(Number(salesDraftQuantity || 0), 4)
+          ),
+        });
+      columnClone.includes("brandName") &&
+        (arr[columnClone.indexOf("brandName")] = {
+          Marka: item.brandName,
+        });
+      columnClone.includes("barcode") &&
+        (arr[columnClone.indexOf("barcode")] = {
+          Barkod: item.barcode,
+        });
+      columnClone.includes("description") &&
+        (arr[columnClone.indexOf("description")] = {
+          "Əlavə məlumat": item.descrption,
+        });
 
-        arr.unshift({ No: index + 1 });
+      arr.unshift({ No: index + 1 });
 
-        return Object.assign({}, ...arr);
-      }
-    );
+      return Object.assign({}, ...arr);
+    });
     let sample_data_to_export = data;
 
     var ws = XLSX.utils.json_to_sheet(sample_data_to_export);
@@ -437,8 +427,7 @@ const Products = (props) => {
     const base64 = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
     const filename = FileSystem.documentDirectory + `report${uuid()}}.xlsx`;
 
-
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       const permissions =
         await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
 
@@ -457,7 +446,7 @@ const Products = (props) => {
       } else {
         Sharing.shareAsync(filename);
       }
-    } else if (Platform.OS === 'ios') {
+    } else if (Platform.OS === "ios") {
       const fileUri = FileSystem.documentDirectory + `invoice${uuid()}}.xlsx`;
 
       await FileSystem.writeAsStringAsync(fileUri, base64, {
@@ -466,7 +455,8 @@ const Products = (props) => {
 
       await Sharing.shareAsync(fileUri, {
         UTI: "com.microsoft.excel.xlsx",
-        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
     }
   };
@@ -546,26 +536,26 @@ const Products = (props) => {
           columns[column.indexOf("idNumber")] = <Text>{item.idNumber}</Text>;
           columns[column.indexOf("salesDraftQuantity")] = (
             <Text>
-              {formatNumberToLocale(
+              {formatNumberForTable(
                 roundTo(Number(salesDraftQuantity || 0), 4)
               )}
             </Text>
           );
           columns[column.indexOf("bronQuantity")] = (
             <Text>
-              {formatNumberToLocale(roundTo(Number(bronQuantity || 0), 4))}
+              {formatNumberForTable(roundTo(Number(bronQuantity || 0), 4))}
             </Text>
           );
           columns[column.indexOf("consignmentQuantity")] = (
             <Text>
-              {formatNumberToLocale(
+              {formatNumberForTable(
                 roundTo(Number(item.consignmentQuantity || 0), 4)
               )}
             </Text>
           );
           columns[column.indexOf("totalQuantity")] = (
             <Text>
-              {formatNumberToLocale(
+              {formatNumberForTable(
                 roundTo(Number(item.totalQuantity || 0), 4)
               )}
             </Text>
@@ -601,7 +591,7 @@ const Products = (props) => {
               }}
             >
               <Text>
-                {formatNumberToLocale(
+                {formatNumberForTable(
                   roundTo(Number(item.pricePerUnit || 0), 4)
                 )}
               </Text>
@@ -612,7 +602,7 @@ const Products = (props) => {
                       {item.prices?.map((price) => (
                         <Text key={`${item.id}-${price.id || price.name}`}>
                           {price.name}:{" "}
-                          {formatNumberToLocale(
+                          {formatNumberForTable(
                             defaultNumberFormat(price.amount)
                           )}{" "}
                           {item.currencyCode}
@@ -635,8 +625,8 @@ const Products = (props) => {
               columns[column.indexOf(priceName.name)] = (
                 <Text>
                   {!currentPrice
-                    ? formatNumberToLocale(defaultNumberFormat(0))
-                    : formatNumberToLocale(
+                    ? formatNumberForTable(defaultNumberFormat(0))
+                    : formatNumberForTable(
                         defaultNumberFormat(currentPrice || 0)
                       )}
                 </Text>
@@ -657,7 +647,7 @@ const Products = (props) => {
                   }}
                 >
                   <Text>
-                    {formatNumberToLocale(
+                    {formatNumberForTable(
                       roundTo(Number(item.roadTaxes?.[0]?.amount || 0), 4)
                     )}{" "}
                     {item.roadTaxes[0]?.currencyCode}
@@ -680,7 +670,7 @@ const Products = (props) => {
                             <Text
                               key={`${item.id}-${tax.id || tax.currencyCode}`}
                             >
-                              {formatNumberToLocale(
+                              {formatNumberForTable(
                                 defaultNumberFormat(tax.amount)
                               )}{" "}
                               {tax.currencyCode}
@@ -708,7 +698,7 @@ const Products = (props) => {
               }}
             >
               <Text>
-                {formatNumberToLocale(defaultNumberFormat(item.quantity))}
+                {formatNumberForTable(defaultNumberFormat(item.quantity))}
               </Text>
               {item.quantity ? (
                 <ProTooltip
@@ -765,32 +755,32 @@ const Products = (props) => {
           );
           columns[column.indexOf("minPrice")] = (
             <Text>
-              {formatNumberToLocale(defaultNumberFormat(item.minPrice))}
+              {formatNumberForTable(defaultNumberFormat(item.minPrice))}
             </Text>
           );
           columns[column.indexOf("maxPrice")] = (
             <Text>
-              {formatNumberToLocale(defaultNumberFormat(item.maxPrice))}
+              {formatNumberForTable(defaultNumberFormat(item.maxPrice))}
             </Text>
           );
           columns[column.indexOf("avgPrice")] = (
             <Text>
-              {formatNumberToLocale(defaultNumberFormat(item.avgPrice))}
+              {formatNumberForTable(defaultNumberFormat(item.avgPrice))}
             </Text>
           );
           columns[column.indexOf("lastPrice")] = (
             <Text>
-              {formatNumberToLocale(defaultNumberFormat(item.lastPrice))}
+              {formatNumberForTable(defaultNumberFormat(item.lastPrice))}
             </Text>
           );
           columns[column.indexOf("lifetime")] = (
             <Text>
-              {formatNumberToLocale(defaultNumberFormat(item.lifetime))}
+              {formatNumberForTable(defaultNumberFormat(item.lifetime))}
             </Text>
           );
           columns[column.indexOf("minimumStockQuantity")] = (
             <Text>
-              {formatNumberToLocale(
+              {formatNumberForTable(
                 defaultNumberFormat(item.minimumStockQuantity)
               )}
             </Text>
@@ -859,7 +849,7 @@ const Products = (props) => {
 
       lastColumns[column.indexOf("consignmentQuantity")] = (
         <Text style={{ color: "white", fontSize: 14, fontWeight: "bold" }}>
-          {formatNumberToLocale(
+          {formatNumberForTable(
             defaultNumberFormat(
               products.reduce(
                 (totalPrice, { consignmentQuantity }) =>
@@ -872,7 +862,7 @@ const Products = (props) => {
       );
       lastColumns[column.indexOf("totalQuantity")] = (
         <Text style={{ color: "white", fontSize: 14, fontWeight: "bold" }}>
-          {formatNumberToLocale(
+          {formatNumberForTable(
             defaultNumberFormat(
               products.reduce(
                 (totalPrice, { totalQuantity }) =>
@@ -886,7 +876,7 @@ const Products = (props) => {
 
       lastColumns[column.indexOf("quantity")] = (
         <Text style={{ color: "white", fontSize: 14, fontWeight: "bold" }}>
-          {formatNumberToLocale(
+          {formatNumberForTable(
             defaultNumberFormat(
               products.reduce(
                 (totalPrice, { quantity }) =>
