@@ -14,6 +14,7 @@ import OtherMeasurementTab from "./OtherMeasurementTab";
 import IncomeInvoice from "./IncomeInvoice";
 import { defaultNumberFormat } from "../../../../utils";
 import { useApi } from "../../../../hooks";
+import { fetchMainCurrency } from "../../../../api/currencies";
 
 const ProductDetail = ({
   isVisible,
@@ -30,6 +31,7 @@ const ProductDetail = ({
   const [excludedGoodsInvoice, setExcludedGoodsInvoice] = useState([]);
   const [priceTypes, setPriceTypes] = useState([]);
   const [product, setProduct] = useState({});
+  const [mainCurrency, setMainCurrency] = useState();
   const [routes, setRoutes] = useState([
     { key: "first", title: "Əlavə məlumat" },
     { key: "fourth", title: "Daxil olma" },
@@ -61,6 +63,12 @@ const ProductDetail = ({
       ]);
     }
   }, [data, product]);
+
+  useEffect(() => {
+    fetchMainCurrency().then((res) => {
+      setMainCurrency(res);
+    });
+  }, []);
 
   const { isLoading: isLoadCounreparty, run: runCounterParty } = useApi({
     deferFn: getCounterparties,
@@ -146,7 +154,7 @@ const ProductDetail = ({
       case "fourth":
         return (
           <IncomeInvoice
-            // mainCurrency={mainCurrency}
+            mainCurrency={mainCurrency}
             // permissionsByKeyValue={permissionsByKeyValue}
             details={incomeInvoice}
             titleName={row.product_name}
@@ -164,7 +172,7 @@ const ProductDetail = ({
       case "fifth":
         return (
           <IncomeInvoice
-            // mainCurrency={mainCurrency}
+            mainCurrency={mainCurrency}
             // permissionsByKeyValue={permissionsByKeyValue}
             details={excludedGoodsInvoice}
             titleName={row.product_name}

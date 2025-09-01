@@ -15,6 +15,7 @@ import uuid from "react-uuid";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import XLSX from "xlsx";
+import { Entypo } from "@expo/vector-icons";
 
 import Pagination from "@cherry-soft/react-native-basic-pagination";
 import { RECEIVABLES_TABLE_SETTING_DATA } from "../../../utils/table-config/financeModule";
@@ -236,7 +237,7 @@ function Recievables(props) {
       );
       const paidInPercentage =
         (totalConvertedPaidAmount * 100) / totalInvoiceDebtAmount;
-      setData({
+              setData({
         tableHead: [
           "No",
           ...visibleColumns.map((item) => {
@@ -309,49 +310,73 @@ function Recievables(props) {
           );
 
           columns[column.indexOf("categoryIds")] = (
-            <Text>{`${handleCategoryNames(item.categoryIds)?.[0] || "-"}
-            ${
-              item.categoryIds?.[0] && (
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "center",
+              }}
+            >
+              <Text>
+                {handleCategoryNames(item.categoryIds)[0] || "-"}
+              </Text>
+              {item.categoryIds?.[0] && (
                 <ProTooltip
                   popover={
-                    <View>
-                      {item.categoryIds?.map((category) => (
+                    <View style={{ display: "flex", flexDirection: "column" }}>
+                      {handleCategoryNames(item.categoryIds)?.map((category) => (
                         <Text key={category}>{category}</Text>
                       ))}
                     </View>
                   }
                   trigger={
-                    <Text>{handleCategoryNames(item.categoryIds)[0]}</Text>
+                    <Entypo
+                      name="dots-three-vertical"
+                      size={20}
+                      color="black"
+                    />
                   }
                 />
-              )
-            }`}</Text>
+              )}
+            </View>
           );
           columns[column.indexOf("idNumber")] = <Text>{item.id}</Text>;
           columns[column.indexOf("phoneNumbers")] = (
-            <Text>{`
-            ${item.phoneNumbers?.[0] || "-"}
-            ${
-              item.phoneNumbers?.[0] && (
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "center",
+              }}
+            >
+              <Text>
+                {item.phoneNumbers?.[0] || "-"}
+              </Text>
+              {item.phoneNumbers?.[0] && (
                 <ProTooltip
                   popover={
-                    <View>
+                    <View style={{ display: "flex", flexDirection: "column" }}>
                       {item.phoneNumbers?.map((number) => (
                         <Text key={number}>{number}</Text>
                       ))}
                     </View>
                   }
-                  trigger={<Text>{item.phoneNumbers?.[0]}</Text>}
+                  trigger={
+                    <Entypo
+                      name="dots-three-vertical"
+                      size={20}
+                      color="black"
+                    />
+                  }
                 />
-              )
-            }
-          `}</Text>
+              )}
+            </View>
           );
           columns[column.indexOf("emails")] = <Text>{item.emails?.[0]}</Text>;
 
           columns[column.indexOf("managers")] = (
             <Text>
-              {`${item.managers?.[0]?.name} ${item.managers?.[0]?.lastName}` ||
+              {`${item.managers?.[0]?.name || '-'} ${item.managers?.[0]?.lastName  || ''}` ||
                 "-"}
             </Text>
           );
@@ -474,7 +499,12 @@ function Recievables(props) {
       columnClone.includes("paidInPercentage") &&
         (arr[columnClone.indexOf("paidInPercentage")] = {
           "Ödənilib(%)":
-            formatNumberToLocale(defaultNumberFormat(item.paidInPercentage)) ||
+          formatNumberToLocale(
+            defaultNumberFormat(
+              (Number(item.convertedPaidAmount) * 100) /
+                Number(item.invoiceDebtAmount)
+            )
+          ) ||
             "-",
         });
       columnClone.includes("amountToBePaid") &&
@@ -496,35 +526,35 @@ function Recievables(props) {
 
       columnClone.includes("daysNum") &&
         (arr[columnClone.indexOf("daysNum")] = {
-          value: Number(item.daysNum) || "-",
+          "Günlərin sayı": Number(item.daysNum) || "-",
         });
       columnClone.includes("type") &&
         (arr[columnClone.indexOf("type")] = {
-          value:
+          "Əlaqə tipi":
             item.type === "Legal entity"
               ? "Hüquqi şəxs"
               : "Fiziki şəxs",
         });
       columnClone.includes("categoryIds") &&
         (arr[columnClone.indexOf("categoryIds")] = {
-          value: handleCategoryNames(item.categoryIds)?.join() || "-",
+          "Kateqoriya": handleCategoryNames(item.categoryIds)?.join() || "-",
         });
       columnClone.includes("idNumber") &&
         (arr[columnClone.indexOf("idNumber")] = {
-          value: item.id || "-",
+          "ID nömrə": item.id || "-",
         });
       columnClone.includes("phoneNumbers") &&
         (arr[columnClone.indexOf("phoneNumbers")] = {
-          value: item.phoneNumbers?.join() || "-",
+          "Əlaqə tel": item.phoneNumbers?.join() || "-",
         });
 
       columnClone.includes("emails") &&
         (arr[columnClone.indexOf("emails")] = {
-          value: item.emails?.join() || "-",
+          "Email": item.emails?.join() || "-",
         });
       columnClone.includes("managers") &&
         (arr[columnClone.indexOf("managers")] = {
-          value:
+          "Menecer":
             item.managers?.length > 0
               ? item.managers
                   ?.map((manager) => `${manager.name} ${manager.lastName}`)
@@ -533,71 +563,71 @@ function Recievables(props) {
         });
       columnClone.includes("voen") &&
         (arr[columnClone.indexOf("voen")] = {
-          value: item.voen || "-",
+          "VÖEN": item.voen || "-",
         });
       columnClone.includes("websites") &&
         (arr[columnClone.indexOf("websites")] = {
-          value: item.websites?.join() || "-",
+          Websayt: item.websites?.join() || "-",
         });
       columnClone.includes("address") &&
         (arr[columnClone.indexOf("address")] = {
-          value: item.address || "-",
+          Ünvan: item.address || "-",
         });
       columnClone.includes("priceType") &&
         (arr[columnClone.indexOf("priceType")] = {
-          value: item.priceType || "Satış",
+          "Qiymət tipi": item.priceType || "Satış",
         });
       columnClone.includes("description") &&
         (arr[columnClone.indexOf("description")] = {
-          value: item.description || "-",
+          "Əlavə məlumat": item.description || "-",
         });
       columnClone.includes("createdAt") &&
         (arr[columnClone.indexOf("createdAt")] = {
-          value: item?.createdAt || "-",
+          "Əməliyyat tarixi": item?.createdAt || "-",
         });
       columnClone.includes("createdBy") &&
         (arr[columnClone.indexOf("createdBy")] = {
-          value: item.createdBy || "-",
+          "Əlavə olunub": item.createdBy || "-",
         });
       columnClone.includes("officialName") &&
         (arr[columnClone.indexOf("officialName")] = {
-          value: item.officialName || "-",
+          "Şirkət adı": item.officialName || "-",
         });
       columnClone.includes("generalDirector") &&
         (arr[columnClone.indexOf("generalDirector")] = {
-          value: item.generalDirector || "-",
+          "Baş direktor": item.generalDirector || "-",
         });
       columnClone.includes("companyVoen") &&
         (arr[columnClone.indexOf("companyVoen")] = {
-          value: item.companyVoen || "-",
+          "VÖEN (Şirkət)": item.companyVoen || "-",
         });
       columnClone.includes("headContactName") &&
         (arr[columnClone.indexOf("headContactName")] = {
-          value: item.headContactName || "-",
+          "Baş əlaqə": item.headContactName || "-",
         });
       columnClone.includes("bankName") &&
         (arr[columnClone.indexOf("bankName")] = {
-          value: item.bankName || "-",
+          "Bank adı": item.bankName || "-",
         });
       columnClone.includes("bankVoen") &&
         (arr[columnClone.indexOf("bankVoen")] = {
-          value: item.bankVoen || "-",
+          "VÖEN (Bank)": item.bankVoen || "-",
         });
       columnClone.includes("bankCode") &&
         (arr[columnClone.indexOf("bankCode")] = {
-          value: item.bankCode || "-",
+          "Kod": item.bankCode || "-",
         });
       columnClone.includes("correspondentAccount") &&
         (arr[columnClone.indexOf("correspondentAccount")] = {
-          value: item.correspondentAccount || "-",
+          "Müxbir hesab (M/h)": item.correspondentAccount || "-",
         });
       columnClone.includes("settlementAccount") &&
         (arr[columnClone.indexOf("settlementAccount")] = {
-          value: item.settlementAccount || "-",
+          "Hesablaşma hesabı (H/h)": item.settlementAccount || "-",
         });
       columnClone.includes("swift") &&
         (arr[columnClone.indexOf("swift")] = {
-          value: item.swift || "-",
+          "S.W.I.F.T.": item.swift || "-",
         });
 
       arr.unshift({ No: index + 1 });

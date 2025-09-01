@@ -2509,7 +2509,13 @@ const SecondRoute = (props) => {
         ),
       });
     }
-  }, [selectedProducts, discount.amount]);
+  }, [Number(
+    selectedProducts.reduce(
+      (totalPrice, { totalPricePerProduct }) =>
+        math.add(totalPrice, Number(totalPricePerProduct || 0)),
+      0
+    ) || 0
+  ), discount.amount]);
 
   useEffect(() => {
     if (useVat) {

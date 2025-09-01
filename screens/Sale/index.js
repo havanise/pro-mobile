@@ -2170,7 +2170,7 @@ const SecondRoute = (props) => {
   ) => {
     let checkPercentage = Platform.OS === 'ios' ? changeNumber(value) : value
     const totalPrice = Number(
-      selectedProducts.reduce(
+      selectedProducts?.reduce(
         (totalPrice, { totalPricePerProduct }) =>
           math.add(totalPrice, Number(totalPricePerProduct || 0)),
         0
@@ -2404,7 +2404,6 @@ const SecondRoute = (props) => {
       setPayments([]);
       setVatSelection(false);
     }
-    console.log(1034);
   };
 
   const handleSearch = useMemo(
@@ -3141,7 +3140,13 @@ const SecondRoute = (props) => {
         amount: undefined,
       });
     }
-  }, [selectedProducts]);
+  }, [Number(
+    selectedProducts.reduce(
+      (totalPrice, { totalPricePerProduct }) =>
+        math.add(totalPrice, Number(totalPricePerProduct || 0)),
+      0
+    ) || 0
+  )]);
 
   useEffect(() => {
     if (useVat) {

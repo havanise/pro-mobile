@@ -611,7 +611,7 @@ export const RECEIVABLES_TABLE_SETTING_DATA = [
   },
   {
     name: "Menecer",
-    dataIndex: "manager",
+    dataIndex: "managers",
     standart: false,
     visible: false,
     fixed: false,

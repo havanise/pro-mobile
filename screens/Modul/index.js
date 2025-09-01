@@ -527,7 +527,7 @@ const FirstRoute = (props) => {
       widthArr: [
         60,
         ...visibleColumns.map((el) => {
-          return 100;
+          return 120;
         }),
       ],
       tableData: getInvoicesWithVat(invoicesList)?.map(
@@ -622,7 +622,6 @@ const FirstRoute = (props) => {
               </Text>
               {counterpartyCategoryIds?.[0] && (
                 <ProTooltip
-                  containerStyle={{ width: 145, height: "auto" }}
                   popover={
                     <View style={{ display: "flex", flexDirection: "column" }}>
                       {handleCategoryNames(counterpartyCategoryIds).map(
