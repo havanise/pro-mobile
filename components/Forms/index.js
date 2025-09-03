@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Text,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import ProText from "../ProText";
 import { AntDesign } from "@expo/vector-icons";
@@ -28,26 +29,33 @@ const Forms = (props) => {
   } = props;
 
   const [isHovered, setIsHovered] = useState(false);
+  const [load, setLoad] = useState(false);
 
   const handlePrintPdf = async (docId, sampleDocId) => {
+    setLoad(true);
     const token = await getData("TKN").then((result) => {
       return result;
     });
     // devcore.prospectsmb.com/v1
     // core.prospect.az/v1
     const url = fromFinance
-      ? `https://core.prospect.az/v1/transactions/exportToWord/${row.cashboxTransactionMoneyId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
+      ? `https://core.prospect.az/v1/transactions/exportToWord/${row.cashboxTransactionMoneyId}?format=jpg&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
       : fromContract
-      ? `https://core.prospect.az/v1/sales/contracts/export/${docId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
+      ? `https://core.prospect.az/v1/sales/contracts/export/${docId}?format=jpg&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
       : fromStockStatus
-      ? `https://core.prospect.az/v1/sales/stock-statuses/export/${docId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
-      : `https://core.prospect.az/v1/sales/invoices/export/invoice/${docId}?format=pdf&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`;
+      ? `https://core.prospect.az/v1/sales/stock-statuses/export/${docId}?format=jpg&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`
+      : `https://core.prospect.az/v1/sales/invoices/export/invoice/${docId}?format=jpg&sampleDocumentId=${sampleDocId}&tenant=${tenant}&token=${token}`;
 
-    try {
-      await Print.printAsync({ uri: url });
-    } catch (error) {
-      console.error("Print error:", error);
-    }
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const reader = new FileReader();
+
+    reader.onload = async () => {
+      const html = `<img src="${reader.result}" style="width:100%" />`;
+      await Print.printAsync({ html });
+    };
+    reader.readAsDataURL(blob);
+    setLoad(false);
   };
 
   return (
@@ -70,59 +78,63 @@ const Forms = (props) => {
           flexDirection: "row",
           flexWrap: "wrap",
           gap: 10,
-          alignItems: 'center',
+          alignItems: "center",
         }}
       >
-        {formsData?.[0]?.docs.map((document) => (
-          <View>
-            <TouchableOpacity
-              //   activeOpacity={1}
-              onPress={() => setIsHovered(!isHovered)}
-              style={styles.imageWrapper}
-            >
-              <Image
-                source={FileWord}
-                style={styles.image}
-                resizeMode="cover"
-              />
+        {load ? (
+          <ActivityIndicator color={"#37B874"} />
+        ) : (
+          formsData?.[0]?.docs.map((document) => (
+            <View>
+              <TouchableOpacity
+                //   activeOpacity={1}
+                onPress={() => setIsHovered(!isHovered)}
+                style={styles.imageWrapper}
+              >
+                <Image
+                  source={FileWord}
+                  style={styles.image}
+                  resizeMode="cover"
+                />
 
-              {isHovered && (
-                <View style={styles.overlay}>
-                  {/* <DetailButton
+                {isHovered && (
+                  <View style={styles.overlay}>
+                    {/* <DetailButton
                         className={styles.descriptionIcon}
                         onClick={() =>
                           handleDocumentDetailClick(row.id, document?.id)
                         }
                       /> */}
-                  <MaterialIcons
-                    name="file-download"
-                    size={24}
-                    color="white"
-                    style={styles.downloadIcon}
-                  />
-                  <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={() => {
-                      handlePrintPdf(row.id, document?.id);
-                    }}
-                  >
-                    <MaterialCommunityIcons
-                      name="file-download-outline"
+                    <MaterialIcons
+                      name="file-download"
                       size={24}
                       color="white"
+                      style={styles.downloadIcon}
                     />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => {
+                        handlePrintPdf(row.id, document?.id);
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name="file-download-outline"
+                        size={24}
+                        color="white"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </TouchableOpacity>
 
-            <Text>
-              {document.name.length > 10
-                ? `${document.name.slice(0, 10)}...`
-                : document.name}
-            </Text>
-          </View>
-        ))}
+              <Text>
+                {document.name.length > 10
+                  ? `${document.name.slice(0, 10)}...`
+                  : document.name}
+              </Text>
+            </View>
+          ))
+        )}
       </View>
       <Pressable
         style={[styles.button, styles.buttonClose]}
@@ -162,7 +174,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     backgroundColor: "rgba(0, 0, 0, 0.3)", // Semi-transparent dark overlay
-    gap: 5
+    gap: 5,
   },
   downloadIcon: {
     opacity: 0.7,

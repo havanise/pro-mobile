@@ -98,7 +98,7 @@ const Login = ({ navigation }) => {
         topOffset: 50,
       });
     } else if (
-      !checkLengthisValid(password) ||
+      // !checkLengthisValid(password) ||
       checkSpaceinValue(password) ||
       checkStartWithSpace(password)
     ) {

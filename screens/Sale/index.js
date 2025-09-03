@@ -1725,7 +1725,8 @@ const SecondRoute = (props) => {
         percentage: newVatPercentage,
         amount: newVatAmount,
       });
-      setDiscount(discount);
+
+      // setDiscount(discount);
     }
   }, [endPrice, invoiceInfo]);
 
@@ -3134,11 +3135,6 @@ const SecondRoute = (props) => {
     );
     if (discount.amount && totalPrice) {
       handleAutoDiscountChange(Number(discount.amount) || 0, "amount");
-    } else {
-      setDiscount({
-        percentage: undefined,
-        amount: undefined,
-      });
     }
   }, [Number(
     selectedProducts.reduce(
@@ -5489,7 +5485,6 @@ const Sale = ({ navigation, route }) => {
         percentage: discountAmount ? `${discountPercentage}` : null,
         amount: discountAmount || undefined,
       });
-      // X
     });
     setEditDate(moment(operationDate, fullDateTimeWithSecond).toDate());
 
